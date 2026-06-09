@@ -721,17 +721,63 @@ function generateSerial({ procType, vvb, tonnes, seq }) {
 // ─── Storage helpers ──────────────────────────────────────────────────────────
 const STORAGE_KEY = "rezy-mrv-batches-depok";
 const SETTINGS_KEY = "rezy-mrv-settings";
+const PHOTO_KEY_PREFIX = "rezy-photo-";
+
+function photoStorageKey(batchId, type) {
+  return `${PHOTO_KEY_PREFIX}${batchId}-${type}`;
+}
+
+// Save each photo to its own localStorage key so large images don't blow up
+// the main batch serialisation and hit the 5 MB quota.
+async function savePhotos(batches) {
+  const photoFields = [
+    ["collection",  "photoDataUrl"],
+    ["transport",   "transportPhotoDataUrl"],
+    ["processing",  "processingPhotoDataUrl"],
+  ];
+  for (const b of batches) {
+    if (!b.batchId) continue;
+    for (const [type, field] of photoFields) {
+      const dataUrl = b[field];
+      if (!dataUrl) continue;
+      const key = photoStorageKey(b.batchId, type);
+      try {
+        localStorage.setItem(key, dataUrl);
+      } catch {
+        // Quota exceeded — compress and retry
+        try {
+          const compressed = await compressPhoto(dataUrl, 800, 0.7);
+          if (compressed) localStorage.setItem(key, compressed);
+        } catch {}
+      }
+    }
+  }
+}
 
 async function loadBatches() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const batches = JSON.parse(raw);
+    return batches.map(b => {
+      if (!b.batchId) return b;
+      return {
+        ...b,
+        photoDataUrl:            localStorage.getItem(photoStorageKey(b.batchId, "collection"))  || b.photoDataUrl            || undefined,
+        transportPhotoDataUrl:   localStorage.getItem(photoStorageKey(b.batchId, "transport"))   || b.transportPhotoDataUrl   || undefined,
+        processingPhotoDataUrl:  localStorage.getItem(photoStorageKey(b.batchId, "processing"))  || b.processingPhotoDataUrl  || undefined,
+      };
+    });
   } catch { return []; }
 }
 
 async function saveBatches(batches) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(batches));
+    // Persist photos separately (avoids localStorage quota errors on the main key)
+    await savePhotos(batches);
+    // Strip photos from the main array before serialising
+    const stripped = batches.map(({ photoDataUrl, transportPhotoDataUrl, processingPhotoDataUrl, ...rest }) => rest);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
     return true;
   } catch { return false; }
 }
