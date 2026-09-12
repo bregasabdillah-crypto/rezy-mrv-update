@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rezycology MRV — Offline</title>
+</head>
+<body style="margin:0;background:#E4EEE4;font-family:'DM Sans',-apple-system,Segoe UI,sans-serif;color:#111811;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;box-sizing:border-box;">
+  <div style="text-align:center;max-width:360px;">
+    <div style="font-size:40px;margin-bottom:12px;">📡</div>
+    <h1 style="font-size:20px;color:#1D5C2E;margin:0 0 8px;">You are offline</h1>
+    <p style="font-size:14px;color:#2d4a33;line-height:1.6;margin:0;">
+      Rezycology MRV needs a connection to load. Any batch you already opened stays available.
+      Reconnect and this page will reload automatically.
+    </p>
+  </div>
+  <script>
+    setInterval(function () { if (navigator.onLine) location.replace("/"); }, 3000);
+    window.addEventListener("online", function () { location.replace("/"); });
+  </script>
+</body>
+</html>
