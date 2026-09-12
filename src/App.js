@@ -235,6 +235,60 @@ const TRANSLATIONS = {
     generateFromBackend: "Generate app data from backend",
     adminReviewDevice: "Admin Review Device",
     settingsAccessDevice: "Settings Access Device",
+    // Full UI sweep
+    readingPhoto: "Reading photo...",
+    analyticsTitle: "Analytics",
+    pickupVehicleLabel: "Pick-up Vehicle",
+    transportRefShort: "Transport Ref.",
+    offtakerTransportRef: "Offtaker Transport Ref.",
+    offtakerTransportDate: "Offtaker Transport Date",
+    offtakerPlateNo: "Offtaker Plate No.",
+    downstreamMaterialProcessed: "Downstream Material Processed",
+    downstreamEowProcess: "Downstream EoW Process",
+    downstreamProcEndDate: "Downstream Proc. End Date",
+    collectionInputterIp: "Collection Inputter IP",
+    collectionInputterId: "Collection Inputter ID",
+    transportInputterIp: "Transport Inputter IP",
+    transportInputterId: "Transport Inputter ID",
+    processingInputterIp: "Processing Inputter IP",
+    processingInputterId: "Processing Inputter ID",
+    offtakerInputterIp: "Offtaker Transport Inputter IP",
+    offtakerInputterId: "Offtaker Transport Inputter ID",
+    downstreamInputterIp: "Downstream Processing Inputter IP",
+    downstreamInputterId: "Downstream Processing Inputter ID",
+    weighingIdLabel: "Weighing ID",
+    sigTransportShort: "Transport Signature",
+    weighingProcessEvidence: "Weighing Process Evidence",
+    deleteBatchLabel: "Delete Batch",
+    noRecentForCategory: "No recent batches for this input category.",
+    chooseOperatorInput: "Choose which operator input you want to record.",
+    changeInput: "Change Input",
+    materialType: "Material Type",
+    handwrittenPhotoNote: "Photo of the handwritten weighing ID or scale note for this material record.",
+    autoGenerate: "Auto-generate",
+    weightKgLabel: "Weight (kg)",
+    noProcessedMatch: "No processed batches match the selected feedstock type(s).",
+    noProcessedAwaiting: "No processed batches awaiting off-taker pickup yet.",
+    photoDeliveryOrder: "Photo of Delivery Order",
+    batchAvailableDownstream: "Batch Available for Downstream Processing (delivered to off-taker)",
+    downstreamFacilityOther: "Downstream Facility (Other)",
+    enterFacilityName: "Enter facility name",
+    listView: "List View",
+    cardView: "Card View",
+    stageLabel: "Stage",
+    operatorLabel: "Operator",
+    actionsLabel: "Actions",
+    materialLabel: "Material",
+    inputterIpLabel: "Inputter IP",
+    inputterLabel: "Inputter",
+    timeLabel: "Time",
+    settingsSubtitleText: "Hub configuration · Admin only",
+    settingsEnabledHere: "Settings is enabled on this device",
+    settingsDisabledHere: "Settings is disabled on this device",
+    reviewEnabledHere: "Admin Review is enabled on this device",
+    reviewDisabledHere: "Admin Review is disabled on this device",
+    disableHere: "Disable Here",
+    enableHere: "Enable Here",
     // Misc
     remove: "Remove", go: "Go", out: "Out",
     hubDepok: "Hub Depok-01",
@@ -447,6 +501,60 @@ const TRANSLATIONS = {
     generateFromBackend: "Buat data aplikasi dari backend",
     adminReviewDevice: "Perangkat Tinjauan Admin",
     settingsAccessDevice: "Perangkat Akses Pengaturan",
+    // Full UI sweep
+    readingPhoto: "Membaca foto...",
+    analyticsTitle: "Analitik",
+    pickupVehicleLabel: "Kendaraan Pengangkut",
+    transportRefShort: "Ref. Angkutan",
+    offtakerTransportRef: "Ref. Angkutan Off-taker",
+    offtakerTransportDate: "Tgl. Angkutan Off-taker",
+    offtakerPlateNo: "No. Plat Off-taker",
+    downstreamMaterialProcessed: "Material Hilir Diproses",
+    downstreamEowProcess: "Proses Akhir Limbah Hilir",
+    downstreamProcEndDate: "Tgl. Selesai Proses Hilir",
+    collectionInputterIp: "IP Penginput Pengumpulan",
+    collectionInputterId: "ID Penginput Pengumpulan",
+    transportInputterIp: "IP Penginput Angkutan",
+    transportInputterId: "ID Penginput Angkutan",
+    processingInputterIp: "IP Penginput Pemrosesan",
+    processingInputterId: "ID Penginput Pemrosesan",
+    offtakerInputterIp: "IP Penginput Angkutan Off-taker",
+    offtakerInputterId: "ID Penginput Angkutan Off-taker",
+    downstreamInputterIp: "IP Penginput Pemrosesan Hilir",
+    downstreamInputterId: "ID Penginput Pemrosesan Hilir",
+    weighingIdLabel: "ID Penimbangan",
+    sigTransportShort: "Tanda Tangan Angkutan",
+    weighingProcessEvidence: "Bukti Proses Penimbangan",
+    deleteBatchLabel: "Hapus Batch",
+    noRecentForCategory: "Belum ada batch terbaru untuk kategori input ini.",
+    chooseOperatorInput: "Pilih input operator yang ingin Anda catat.",
+    changeInput: "Ganti Input",
+    materialType: "Jenis Material",
+    handwrittenPhotoNote: "Foto ID penimbangan tulis tangan atau catatan timbangan untuk record material ini.",
+    autoGenerate: "Buat otomatis",
+    weightKgLabel: "Berat (kg)",
+    noProcessedMatch: "Tidak ada batch terproses yang cocok dengan jenis bahan baku terpilih.",
+    noProcessedAwaiting: "Belum ada batch terproses yang menunggu pengambilan off-taker.",
+    photoDeliveryOrder: "Foto Surat Jalan",
+    batchAvailableDownstream: "Batch Tersedia untuk Pemrosesan Hilir (dikirim ke off-taker)",
+    downstreamFacilityOther: "Fasilitas Hilir (Lainnya)",
+    enterFacilityName: "Masukkan nama fasilitas",
+    listView: "Tampilan Daftar",
+    cardView: "Tampilan Kartu",
+    stageLabel: "Tahap",
+    operatorLabel: "Operator",
+    actionsLabel: "Tindakan",
+    materialLabel: "Material",
+    inputterIpLabel: "IP Penginput",
+    inputterLabel: "Penginput",
+    timeLabel: "Waktu",
+    settingsSubtitleText: "Konfigurasi hub · Admin saja",
+    settingsEnabledHere: "Pengaturan aktif di perangkat ini",
+    settingsDisabledHere: "Pengaturan nonaktif di perangkat ini",
+    reviewEnabledHere: "Tinjauan Admin aktif di perangkat ini",
+    reviewDisabledHere: "Tinjauan Admin nonaktif di perangkat ini",
+    disableHere: "Nonaktifkan di Sini",
+    enableHere: "Aktifkan di Sini",
     // Misc
     remove: "Hapus", go: "Cari", out: "Keluar",
     hubDepok: "Hub Depok-01",
@@ -2571,7 +2679,9 @@ function ActivityLog({ activities, lang = "en" }) {
       <div style={{ position: "relative" }}>
         {/* vertical line */}
         <div style={{ position: "absolute", left: 13, top: 0, bottom: 0, width: 2, background: C.creamDark }} />
-        {activities.map((a, i) => (
+        {[...activities]
+          .sort((x, y) => (parseDate(y.ts)?.getTime() || 0) - (parseDate(x.ts)?.getTime() || 0))
+          .map((a, i) => (
           <div key={i} style={{ display: "flex", gap: 12, marginBottom: 14, position: "relative" }}>
             {/* dot */}
             <div style={{ width: 28, height: 28, borderRadius: "50%", background: C.forest, border: `2px solid ${C.white}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0, zIndex: 1 }}>
@@ -2697,7 +2807,7 @@ function CertModal({ record, onClose, lang = "en" }) {
             ["Batch ID", record.batchId, true],
             ["Credit Serial", record.pprsSerial, true],
             ["Feedstock", record.feedstockType, false],
-            ["Weight", `${Number(record.weightKg).toLocaleString()} kg (${record.creditsTonnes?.toFixed(4)} MT)`, false],
+            [t("weight"), `${Number(record.weightKg).toLocaleString()} kg (${record.creditsTonnes?.toFixed(4)} MT)`, false],
             ["Hub", "Hub Depok-01", false],
             ["Weighing Equip.", record.weighingEquipId, true],
             ["EoW Process", record.eowProcess, false],
@@ -2719,7 +2829,7 @@ function CertModal({ record, onClose, lang = "en" }) {
             <div style={{ display: "grid", gridTemplateColumns: record.transportPhotoDataUrl || record.processingPhotoDataUrl ? "repeat(2,1fr)" : "1fr", gap: 8 }}>
               {record.photoDataUrl && (
                 <div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 3 }}>Weighing Process Evidence</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 3 }}>{t("weighingProcessEvidence")}</div>
                   <img src={record.photoDataUrl} alt="collection" style={{ width: "100%", borderRadius: 8, objectFit: "cover", height: 90 }} />
                 </div>
               )}
@@ -3299,7 +3409,7 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
   if (safeArr.length === 0) {
     return (
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>Analytics</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>{t("analyticsTitle")}</h1>
         <p style={{ color: C.muted, fontSize: 13, margin: "0 0 20px" }}>Hub Depok-01</p>
         <Card>
           <div style={{ textAlign: "center", padding: "40px 0", color: C.muted }}>
@@ -3314,7 +3424,7 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>Analytics</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>{t("analyticsTitle")}</h1>
       <p style={{ color: C.muted, fontSize: 13, margin: "0 0 20px" }}>Hub Depok-01 · {analyticsRows.length} of {safeArr.length} batches</p>
 
       <Card style={{ marginBottom: 16 }}>
@@ -4749,7 +4859,7 @@ export default function RezyMRVLive() {
         photoLabel: "Transport Photo",
         photo: evidenceBatch?.transportPhotoDataUrl,
         extraPhotos: [],
-        signatureLabel: "Transport Signature",
+        signatureLabel: t("sigTransportShort"),
         signature: evidenceBatch?.sigTransport,
       };
     }
@@ -4778,7 +4888,10 @@ export default function RezyMRVLive() {
   const byStatus = s => visibleBatches.filter(b => b.status === s).length;
   const recordRows = getStageRecordRows(visibleBatches);
   const operatorInputStatuses = ["collection", "transport", "processing", "offtaker_transport", "downstream_processing"];
-  const pendingReviewBatches = batches.filter(b => operatorInputStatuses.includes(b.status) && (b.reviewStatus || "pending") === "pending");
+  // Backend returns rows created_at ascending, so sort newest-first for review.
+  const pendingReviewBatches = batches
+    .filter(b => operatorInputStatuses.includes(b.status) && (b.reviewStatus || "pending") === "pending")
+    .sort((a, b) => (parseDate(b.createdAt)?.getTime() || 0) - (parseDate(a.createdAt)?.getTime() || 0));
   const acceptedInputCount = batches.filter(b => operatorInputStatuses.includes(b.status) && b.reviewStatus === "accepted").length;
   const rejectedInputCount = batches.filter(b => operatorInputStatuses.includes(b.status) && b.reviewStatus === "rejected").length;
   const dashboardRecordRowsRaw = roleObj?.allowedEntryModes?.length === 1
@@ -4897,54 +5010,54 @@ export default function RezyMRVLive() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px", marginBottom: 16 }}>
               {[
-                ["Weight", `${Number(detailView.weightKg).toLocaleString()} kg`],
+                [t("weight"), `${Number(detailView.weightKg).toLocaleString()} kg`],
 	                ["Collector", detailView.collectorId],
 	                ["Weighing Equip.", detailView.weighingEquipId],
-	                ["Pick-up Vehicle", detailView.pickupVehicle],
+	                [t("pickupVehicleLabel"), detailView.pickupVehicle],
 	                ["Collection Date", fmtDateTime(detailView.collectionDate)],
-                ["Transport Ref.", detailView.transportRef],
-                ["Transport Date", fmtDateTime(detailView.transportDate)],
+                [t("transportRefShort"), detailView.transportRef],
+                [t("transportDate"), fmtDateTime(detailView.transportDate)],
                 ["Processor", detailView.processor],
                 ["EoW Process", detailView.eowProcess],
-                ["Proc. End Date", fmtDateTime(detailView.processingEndDate)],
+                [t("procEndDate"), fmtDateTime(detailView.processingEndDate)],
                 ["Material Processed", detailView.processedFeedstockType],
                 ["Accepted Weight", detailView.acceptedWeightKg ? `${Number(detailView.acceptedWeightKg).toLocaleString()} kg` : ""],
                 ["Rejected Weight", detailView.rejectedWeightKg ? `${Number(detailView.rejectedWeightKg).toLocaleString()} kg` : ""],
-                ["Offtaker Transport Ref.", detailView.offtakerTransportRef],
-                ["Offtaker Transport Date", fmtDateTime(detailView.offtakerTransportDate)],
-                ["Offtaker Plate No.", detailView.offtakerPlateNo],
+                [t("offtakerTransportRef"), detailView.offtakerTransportRef],
+                [t("offtakerTransportDate"), fmtDateTime(detailView.offtakerTransportDate)],
+                [t("offtakerPlateNo"), detailView.offtakerPlateNo],
                 ["Downstream Facility", detailView.downstreamFacility],
-                ["Downstream Material Processed", detailView.downstreamProcessedFeedstockType],
-                ["Downstream EoW Process", detailView.downstreamEowProcess],
-                ["Downstream Proc. End Date", fmtDateTime(detailView.downstreamProcessingEndDate)],
+                [t("downstreamMaterialProcessed"), detailView.downstreamProcessedFeedstockType],
+                [t("downstreamEowProcess"), detailView.downstreamEowProcess],
+                [t("downstreamProcEndDate"), fmtDateTime(detailView.downstreamProcessingEndDate)],
                 ["Downstream Accepted Weight", detailView.downstreamAcceptedWeightKg ? `${Number(detailView.downstreamAcceptedWeightKg).toLocaleString()} kg` : ""],
                 ["Downstream Rejected Weight", detailView.downstreamRejectedWeightKg ? `${Number(detailView.downstreamRejectedWeightKg).toLocaleString()} kg` : ""],
                 ["Downstream Yield Variance", detailView.downstreamYieldVarianceKg !== null && detailView.downstreamYieldVarianceKg !== undefined && detailView.downstreamYieldVarianceKg !== "" ? `${Number(detailView.downstreamYieldVarianceKg).toLocaleString()} kg (${Number(detailView.downstreamYieldVariancePct || 0).toFixed(1)}%)` : ""],
-                ["Logged By", detailView.loggedBy],
-                ["Logged At", fmtDateTime(detailView.createdAt)],
+                [t("loggedByLabel"), detailView.loggedBy],
+                [t("loggedAt"), fmtDateTime(detailView.createdAt)],
                 ...(() => {
                   const ipMap = parseInputterMap(detailView.inputterIp);
                   const devMap = parseInputterMap(detailView.inputterDevice);
                   const rows = [];
                   if (ipMap.collection || devMap.collection) rows.push(
-                    ["Collection Inputter IP", ipMap.collection || "—"],
-                    ["Collection Inputter ID", devMap.collection ? extractInputterId(devMap.collection) : "—"],
+                    [t("collectionInputterIp"), ipMap.collection || "—"],
+                    [t("collectionInputterId"), devMap.collection ? extractInputterId(devMap.collection) : "—"],
                   );
                   if (ipMap.transport || devMap.transport) rows.push(
-                    ["Transport Inputter IP", ipMap.transport || "—"],
-                    ["Transport Inputter ID", devMap.transport ? extractInputterId(devMap.transport) : "—"],
+                    [t("transportInputterIp"), ipMap.transport || "—"],
+                    [t("transportInputterId"), devMap.transport ? extractInputterId(devMap.transport) : "—"],
                   );
                   if (ipMap.processing || devMap.processing) rows.push(
-                    ["Processing Inputter IP", ipMap.processing || "—"],
-                    ["Processing Inputter ID", devMap.processing ? extractInputterId(devMap.processing) : "—"],
+                    [t("processingInputterIp"), ipMap.processing || "—"],
+                    [t("processingInputterId"), devMap.processing ? extractInputterId(devMap.processing) : "—"],
                   );
                   if (ipMap.offtaker_transport || devMap.offtaker_transport) rows.push(
-                    ["Offtaker Transport Inputter IP", ipMap.offtaker_transport || "—"],
-                    ["Offtaker Transport Inputter ID", devMap.offtaker_transport ? extractInputterId(devMap.offtaker_transport) : "—"],
+                    [t("offtakerInputterIp"), ipMap.offtaker_transport || "—"],
+                    [t("offtakerInputterId"), devMap.offtaker_transport ? extractInputterId(devMap.offtaker_transport) : "—"],
                   );
                   if (ipMap.downstream_processing || devMap.downstream_processing) rows.push(
-                    ["Downstream Processing Inputter IP", ipMap.downstream_processing || "—"],
-                    ["Downstream Processing Inputter ID", devMap.downstream_processing ? extractInputterId(devMap.downstream_processing) : "—"],
+                    [t("downstreamInputterIp"), ipMap.downstream_processing || "—"],
+                    [t("downstreamInputterId"), devMap.downstream_processing ? extractInputterId(devMap.downstream_processing) : "—"],
                   );
                   return rows;
                 })(),
@@ -5001,7 +5114,7 @@ export default function RezyMRVLive() {
                 <SectionTitle>Handwritten Weighing Identification</SectionTitle>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 18px" }}>
                   {[
-                    ["Weighing ID", detailHandwritten.weighingId],
+                    [t("weighingIdLabel"), detailHandwritten.weighingId],
                     ["Raw Numbers", detailHandwritten.weights?.join(", ")],
                     ["Gross Weight", detailHandwritten.grossWeight ? `${Number(detailHandwritten.grossWeight).toLocaleString()} kg` : ""],
                     ["Total Deduction", detailHandwritten.totalDeduction ? `${Number(detailHandwritten.totalDeduction).toLocaleString()} kg` : ""],
@@ -5117,9 +5230,9 @@ export default function RezyMRVLive() {
                 </>
               )}
               {canAccess("verify") && detailView.reviewStatus === "rejected" && (
-                <Btn small onClick={() => deleteRejectedBatch(detailView.id)} variant="danger">Delete Batch</Btn>
+                <Btn small onClick={() => deleteRejectedBatch(detailView.id)} variant="danger">{t("deleteBatchLabel")}</Btn>
               )}
-              <Btn small onClick={() => setDetailView(null)} variant="ghost">Close</Btn>
+              <Btn small onClick={() => setDetailView(null)} variant="ghost">{t("close")}</Btn>
             </div>
           </div>
         </div>
@@ -5253,7 +5366,7 @@ export default function RezyMRVLive() {
                   <div style={{ textAlign: "center", padding: "24px 0", color: C.muted }}>
                     <div style={{ fontSize: 32, marginBottom: 8 }}>📦</div>
                     <div style={{ fontSize: 14, fontWeight: 600 }}>
-                      {visibleBatches.length === 0 ? t("noBatchesYet") : "No recent batches for this input category."}
+                      {visibleBatches.length === 0 ? t("noBatchesYet") : t("noRecentForCategory")}
                     </div>
                     {canAccess("log") && <div style={{ fontSize: 13, marginTop: 6 }}>{t("goToNewBatch")}</div>}
                   </div>
@@ -5297,7 +5410,7 @@ export default function RezyMRVLive() {
             <div>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>{t("newBatch")}</h1>
               <p style={{ color: C.muted, fontSize: 13, margin: "0 0 20px" }}>
-                {entryMode ? `${t("chainOfCustody")} · ${t(STAGE_KEYS[stage - 1])}` : "Choose which operator input you want to record."}
+                {entryMode ? `${t("chainOfCustody")} · ${t(STAGE_KEYS[stage - 1])}` : t("chooseOperatorInput")}
               </p>
 
               {!entryMode && (
@@ -5334,7 +5447,7 @@ export default function RezyMRVLive() {
                   <StageBar current={stage} lang={lang} isMobile={isMobile} />
                   {role === "admin" && (
                     <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
-                      <Btn small onClick={() => resetNewBatchForm()} variant="ghost">Change Input</Btn>
+                      <Btn small onClick={() => resetNewBatchForm()} variant="ghost">{t("changeInput")}</Btn>
                     </div>
                   )}
                 </div>
@@ -5353,12 +5466,12 @@ export default function RezyMRVLive() {
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                           {(col.materials || []).map((m, idx) => (
                             <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 120px auto", gap: 8, alignItems: "end" }}>
-                              <Sel label={idx === 0 ? "Material Type" : ""} value={m.feedstockType} onChange={v => setCol(p => {
+                              <Sel label={idx === 0 ? t("materialType") : ""} value={m.feedstockType} onChange={v => setCol(p => {
                                 const next = [...(p.materials || [])];
                                 next[idx] = { ...next[idx], feedstockType: v };
                                 return { ...p, materials: next };
                               })} options={FEEDSTOCK_TYPES} required />
-                              <Inp label={idx === 0 ? "Gross Weight (kg)" : ""} type="number" value={m.weightKg} onChange={v => setCol(p => {
+                              <Inp label={idx === 0 ? t("grossWeight") : ""} type="number" value={m.weightKg} onChange={v => setCol(p => {
                                 const next = [...(p.materials || [])];
                                 next[idx] = { ...next[idx], weightKg: v };
                                 return { ...p, materials: next };
@@ -5386,7 +5499,7 @@ export default function RezyMRVLive() {
                           </div>
                         )}
                         {!col.calibCertUrl && (
-                          <div style={{ marginTop: 4, fontSize: 11, color: "#c0392b" }}>Required — calibration proof must be attached per chain-of-custody requirements.</div>
+                          <div style={{ marginTop: 4, fontSize: 11, color: "#c0392b" }}>{t("calibCertRequired")}</div>
                         )}
                       </div>
                       <Inp label={t("collectionTimestamp")} value={jakartaNowLabel(clockNow)} onChange={() => {}} disabled />
@@ -5398,7 +5511,7 @@ export default function RezyMRVLive() {
                     </div>
                     <div style={{ marginBottom: 18 }}>
                       <Lbl>{t("collectionPhoto")} <span style={{ color: C.orange, fontWeight: 700 }}>*</span></Lbl>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>Photo of the weighing process as collection evidence.</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t("weighingPhotoNote")}</div>
                       <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{ fontSize: 12, color: C.muted }} />
                       {col.photoDataUrl && (
                         <div style={{ position: "relative", marginTop: 8 }}>
@@ -5409,7 +5522,7 @@ export default function RezyMRVLive() {
                     </div>
                     <div style={{ marginBottom: 18 }}>
                       <Lbl>{t("handwrittenWeighingId")} <span style={{ color: C.orange, fontWeight: 700 }}>*</span></Lbl>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>Photo of the handwritten weighing ID or scale note for this material record.</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t("handwrittenPhotoNote")}</div>
                       <input type="file" accept="image/*" capture="environment" onChange={handleHandwrittenWeighingIdPhoto} style={{ fontSize: 12, color: C.muted }} />
                       <textarea
                         value={col.handwrittenInput}
@@ -5419,7 +5532,7 @@ export default function RezyMRVLive() {
                         style={{ width: "100%", marginTop: 10, padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${C.creamDark}`, background: C.white, fontSize: 13, color: C.charcoal, outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "'DM Mono', monospace" }}
                       />
                       <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
-                        <Btn small onClick={generateHandwrittenWeighing} variant="secondary" disabled={ocrLoading}>{ocrLoading ? "Reading photo..." : "Auto-generate"}</Btn>
+                        <Btn small onClick={generateHandwrittenWeighing} variant="secondary" disabled={ocrLoading}>{ocrLoading ? t("readingPhoto") : t("autoGenerate")}</Btn>
                         {col.handwrittenWeighing && (
                           <span style={{ fontSize: 12, color: C.forest, fontWeight: 800, fontFamily: "'DM Mono', monospace" }}>{col.handwrittenWeighing.weighingId}</span>
                         )}
@@ -5628,7 +5741,7 @@ export default function RezyMRVLive() {
                             </div>
                             <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
                               <div style={{ flex: isMobile ? "1 1 auto" : "0 0 120px", minWidth: 0 }}>
-                                <Inp label={idx === 0 ? "Weight (kg)" : ""} type="number" value={m.weightKg} onChange={v => setOft(p => {
+                                <Inp label={idx === 0 ? t("weightKgLabel") : ""} type="number" value={m.weightKg} onChange={v => setOft(p => {
                                   const next = [...(p.materials || [])];
                                   next[idx] = { ...next[idx], weightKg: v };
                                   return { ...p, materials: next };
@@ -5689,7 +5802,7 @@ export default function RezyMRVLive() {
                         </>
                       ) : (
                         <div style={{ background: "#fff8e1", border: `1px solid #f0d58a`, borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#7a5800" }}>
-                          {offtakerBatches.length > 0 ? "No processed batches match the selected feedstock type(s)." : "No processed batches awaiting off-taker pickup yet."}
+                          {offtakerBatches.length > 0 ? t("noProcessedMatch") : t("noProcessedAwaiting")}
                         </div>
                       )}
                     </div>
@@ -5740,7 +5853,7 @@ export default function RezyMRVLive() {
                       {SHOW_MAP_PICKER && <MapPicker value={oftGeo} onChange={setOftGeo} lang={lang} />}
                     </div>
                     <div style={{ marginBottom: 18 }}>
-                      <Lbl>Photo of Delivery Order</Lbl>
+                      <Lbl>{t("photoDeliveryOrder")}</Lbl>
                       <input type="file" accept="image/*" capture="environment" onChange={handleOfftakerTransportPhoto} style={{ fontSize: 12, color: C.muted }} />
                       {oft.photoDataUrl && (
                         <div style={{ position: "relative", marginTop: 8 }}>
@@ -5761,7 +5874,7 @@ export default function RezyMRVLive() {
                     <div style={{ marginBottom: 13 }}>
                       {downstreamBatches.length > 0 ? (
                         <SearchSel
-                          label="Batch Available for Downstream Processing (delivered to off-taker)"
+                          label={t("batchAvailableDownstream")}
                           value={active?.batchId || ""}
                           onChange={v => { const b = downstreamBatches.find(pb => pb.batchId === v); if (b) setActiveId(b.id); }}
                           options={downstreamBatches.map(b => ({ value: b.batchId, label: `${b.batchId} · ${fmtDate(b.collectionDate)} · ${b.collectorId}` }))}
@@ -5776,7 +5889,7 @@ export default function RezyMRVLive() {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
                       <Sel label="Downstream Facility" value={dsp.facility} onChange={v => setDsp(p=>({...p,facility:v}))} options={DOWNSTREAM_FACILITIES} required />
                       {dsp.facility === "Other" && (
-                        <Inp label="Downstream Facility (Other)" value={dsp.facilityOther} onChange={v => setDsp(p=>({...p,facilityOther:v}))} placeholder="Enter facility name" required />
+                        <Inp label={t("downstreamFacilityOther")} value={dsp.facilityOther} onChange={v => setDsp(p=>({...p,facilityOther:v}))} placeholder={t("enterFacilityName")} required />
                       )}
                       {(() => {
                         const dspMaterialsAvail = active?.offtakerMaterials || [];
@@ -5854,8 +5967,8 @@ export default function RezyMRVLive() {
 		                  <Btn small onClick={() => refreshBatchesFromSheet(true)} variant="secondary" disabled={!sheetsUrl}>{t("refreshData")}</Btn>
 		                  <div style={{ display: "flex", background: C.creamDark, borderRadius: 8, padding: 3 }}>
 		                    {[
-		                      { key: "list", label: "List View" },
-		                      { key: "card", label: "Card View" },
+		                      { key: "list", label: t("listView") },
+		                      { key: "card", label: t("cardView") },
 		                    ].map(opt => (
 		                      <button key={opt.key} onClick={() => setReviewViewMode(opt.key)} style={{
 		                        border: "none",
@@ -5902,7 +6015,7 @@ export default function RezyMRVLive() {
 	                    </colgroup>
 	                    <thead>
 	                      <tr style={{ background: C.cream }}>
-	                        {["Batch ID","Stage","Feedstock","Weight","Operator","Logged At","Actions"].map(h => (
+	                        {[t("batchId"),t("stageLabel"),t("feedstock"),t("weight"),t("operatorLabel"),t("loggedAt"),t("actionsLabel")].map(h => (
 	                          <th key={h} style={{ padding: "9px 10px", textAlign: "left", fontSize: 9, fontWeight: 700, color: C.muted, letterSpacing: 0.3, textTransform: "uppercase", borderBottom: `1px solid ${C.creamDark}`, whiteSpace: "normal", lineHeight: 1.25 }}>{h}</th>
 	                        ))}
 	                      </tr>
@@ -5958,7 +6071,7 @@ export default function RezyMRVLive() {
 	                      <div style={{ alignSelf: isMobile ? "flex-start" : "auto" }}><Badge status={b.status} lang={lang} /></div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3,1fr)", gap: isMobile ? "10px 14px" : "8px 20px", marginBottom: 14 }}>
-                      {[["Hub","Hub Depok-01"],["Collector",b.collectorId],["Collection Date",fmtDateTime(b.collectionDate)],["Transport Ref.",b.transportRef],["Processor",b.processor],["EoW Process",b.eowProcess]].map(([k,v])=>(
+                      {[["Hub","Hub Depok-01"],["Collector",b.collectorId],["Collection Date",fmtDateTime(b.collectionDate)],[t("transportRefShort"),b.transportRef],["Processor",b.processor],["EoW Process",b.eowProcess]].map(([k,v])=>(
                         <InfoRow key={k} label={k} value={v} />
                       ))}
                     </div>
@@ -5989,7 +6102,9 @@ export default function RezyMRVLive() {
                     {b.activities && b.activities.length > 0 && (
                       <div style={{ background: C.pageBg, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 10 }}>{t("custodyTrail")}</div>
-                        {b.activities.map((a, i) => {
+                        {[...b.activities]
+                          .sort((x, y) => (parseDate(y.ts)?.getTime() || 0) - (parseDate(x.ts)?.getTime() || 0))
+                          .map((a, i) => {
                           const geo = a.geo;
                           return (
                             <div key={i} style={{ display: "flex", gap: 10, marginBottom: i < b.activities.length - 1 ? 10 : 0, alignItems: "flex-start" }}>
@@ -6098,7 +6213,7 @@ export default function RezyMRVLive() {
                     )}
                     <thead>
                       <tr style={{ background: C.cream }}>
-                        {(isMobile ? ["Batch","Material","Kg","Status","Inputter IP","Time"] : ["Batch ID","Feedstock","Weight","Collector","Inputter","Inputter IP","Status","Logged At","GPS"]).map(h => (
+                        {(isMobile ? [t("batchLabelShort"),t("materialLabel"),"Kg",t("status"),t("inputterIpLabel"),t("timeLabel")] : [t("batchId"),t("feedstock"),t("weight"),t("collector"),t("inputterLabel"),t("inputterIpLabel"),t("status"),t("loggedAt"),"GPS"]).map(h => (
                           <th key={h} style={{ padding: isMobile ? "8px 6px" : "9px 10px", textAlign: "left", fontSize: isMobile ? 8 : 9, fontWeight: 700, color: C.muted, letterSpacing: 0.3, textTransform: "uppercase", borderBottom: `1px solid ${C.creamDark}`, whiteSpace: "normal", lineHeight: 1.25, overflowWrap: "anywhere" }}>{h}</th>
                         ))}
                       </tr>
@@ -6187,7 +6302,7 @@ export default function RezyMRVLive() {
           {tab === "settings" && canAccess("settings") && (
             <div>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>{t("settingsTitle")}</h1>
-              <p style={{ color: C.muted, fontSize: 13, margin: "0 0 20px" }}>Hub configuration · Admin only</p>
+              <p style={{ color: C.muted, fontSize: 13, margin: "0 0 20px" }}>{t("settingsSubtitleText")}</p>
 
               {/* ── Backend Sync ── */}
               <Card style={{ marginBottom: 16 }}>
@@ -6326,14 +6441,14 @@ export default function RezyMRVLive() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, background: C.creamMid, borderRadius: 10, padding: "12px 16px" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.charcoal }}>
-                      {isSettingsDevice ? "Settings is enabled on this device" : "Settings is disabled on this device"}
+                      {isSettingsDevice ? t("settingsEnabledHere") : t("settingsDisabledHere")}
                     </div>
                     <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
                       This setting is stored per-device (per browser) and does not affect other devices.
                     </div>
                   </div>
                   <Btn small onClick={() => setSettingsDevice(!isSettingsDevice)} variant={isSettingsDevice ? "ghost" : "primary"}>
-                    {isSettingsDevice ? "Disable Here" : "Enable Here"}
+                    {isSettingsDevice ? t("disableHere") : t("enableHere")}
                   </Btn>
                 </div>
               </Card>
@@ -6351,7 +6466,7 @@ export default function RezyMRVLive() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, background: C.creamMid, borderRadius: 10, padding: "12px 16px" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.charcoal }}>
-                      {isAdminReviewDevice ? "Admin Review is enabled on this device" : "Admin Review is disabled on this device"}
+                      {isAdminReviewDevice ? t("reviewEnabledHere") : t("reviewDisabledHere")}
                     </div>
                     <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
                       This setting is stored per-device (per browser) and does not affect other devices.
