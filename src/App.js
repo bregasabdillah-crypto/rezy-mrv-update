@@ -289,6 +289,7 @@ const TRANSLATIONS = {
     reviewDisabledHere: "Admin Review is disabled on this device",
     disableHere: "Disable Here",
     enableHere: "Enable Here",
+    rejectedExceedsAccepted: "Rejected weight cannot exceed accepted weight — please check the figures.",
     // Misc
     remove: "Remove", go: "Go", out: "Out",
     hubDepok: "Hub Depok-01",
@@ -555,6 +556,7 @@ const TRANSLATIONS = {
     reviewDisabledHere: "Tinjauan Admin nonaktif di perangkat ini",
     disableHere: "Nonaktifkan di Sini",
     enableHere: "Aktifkan di Sini",
+    rejectedExceedsAccepted: "Berat ditolak tidak boleh melebihi berat diterima — mohon periksa kembali angkanya.",
     // Misc
     remove: "Hapus", go: "Cari", out: "Keluar",
     hubDepok: "Hub Depok-01",
@@ -4500,6 +4502,12 @@ export default function RezyMRVLive() {
       { ok: Boolean(prc.photoDataUrl), label: "Processing Photo" },
       { ok: Boolean(sigPrc), label: "Processor Signature" },
     ])) return;
+    // Rejected must not exceed accepted. Accepted is derived as processed - rejected,
+    // so this rejects any line where more than half the material is rejected.
+    if (rejectedWeightKg > acceptedWeightKg) {
+      showToast(`${t("rejectedExceedsAccepted")} (${rejectedWeightKg} kg > ${acceptedWeightKg} kg)`, "err");
+      return;
+    }
     setGeoLoading(true);
     showToast("Getting location…");
     const geo = await getGeo(prcGeo);
@@ -4691,6 +4699,10 @@ export default function RezyMRVLive() {
       { ok: Boolean(dsp.photoDataUrl), label: "Downstream Processing Photo" },
       { ok: Boolean(sigDsp), label: "Downstream Processor Signature" },
     ])) return;
+    if (rejectedWeightKg > acceptedWeightKg) {
+      showToast(`${t("rejectedExceedsAccepted")} (${rejectedWeightKg} kg > ${acceptedWeightKg} kg)`, "err");
+      return;
+    }
     setGeoLoading(true);
     showToast("Getting location…");
     const geo = await getGeo(dspGeo);
