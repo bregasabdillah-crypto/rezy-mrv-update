@@ -80,6 +80,8 @@ const TRANSLATIONS = {
     collectionDate: "Collection Date", notes: "Notes / Field Observations",
     notesPlaceholder: "Condition of batch, contamination notes, etc.",
     collectionPhoto: "Collection Photo (chain-of-custody evidence)",
+    lapakBillPhoto: "Lapak Bill Photo",
+    lapakBillPhotoNote: "Photograph the bill/receipt issued by the lapak for this collection.",
     creditEstimate: "pending full chain + VVB",
     logCollection: "Save →",
     // Stage 2
@@ -350,7 +352,7 @@ const TRANSLATIONS = {
     // Dashboard
     totalPlasticLogged: "Total Plastik Tercatat", creditsIssued: "Kredit Diterbitkan",
     totalBatches: "Total Batch", awaitingVerification: "Menunggu Verifikasi",
-    chainStatus: "Status Rantai · End-to-End", recentBatches: "Batch Terbaru",
+    chainStatus: "Status Chain-of-Custody · End-to-End", recentBatches: "Batch Terbaru",
     noBatchesYet: "Belum ada batch.", goToNewBatch: "Buka Batch Baru untuk mencatat koleksi pertama.",
     livePilot: "Masuk sebagai",
     // Stages
@@ -381,8 +383,10 @@ const TRANSLATIONS = {
     collector: "Nama Lapak", weighingEquip: "Alat Timbang",
     collectionDate: "Tanggal Pengumpulan", notes: "Catatan / Observasi Lapangan",
     notesPlaceholder: "Kondisi batch, catatan kontaminasi, dll.",
-    collectionPhoto: "Foto Pengumpulan (bukti rantai penjagaan)",
-    creditEstimate: "menunggu rantai lengkap + VVB",
+    collectionPhoto: "Foto Pengumpulan (bukti chain-of-custody)",
+    lapakBillPhoto: "Foto Nota Lapak",
+    lapakBillPhotoNote: "Foto nota/kuitansi yang diterbitkan lapak untuk pengumpulan ini.",
+    creditEstimate: "menunggu chain-of-custody lengkap + VVB",
     logCollection: "Simpan →",
     // Stage 2
     stage2Title: "Tahap 2 — Dokumentasi Pengangkutan",
@@ -409,8 +413,8 @@ const TRANSLATIONS = {
     confirmProcessing: "Konfirmasi Pemrosesan →",
     // Stage 4
     stage4Title: "Tahap 4 — Verifikasi Dampak VVB",
-    stage4Note: "Diperlukan VVB pihak ketiga yang disetujui PCX Solutions. VVB meninjau catatan rantai penjagaan sebelum kredit dapat diterbitkan.",
-    chainSummary: "Ringkasan Rantai Penjagaan",
+    stage4Note: "Diperlukan VVB pihak ketiga yang disetujui PCX Solutions. VVB meninjau catatan chain-of-custody sebelum kredit dapat diterbitkan.",
+    chainSummary: "Ringkasan Chain-of-Custody",
     vvbLabel: "VVB (Disetujui Verra)", vvbAuditRef: "No. Referensi Audit VVB",
     vvbAuditPlaceholder: "mis. SCS-2026-IDN-0044",
     eprBuyer: "Pembeli Kredit EPR",
@@ -418,7 +422,7 @@ const TRANSLATIONS = {
     // Stage 5
     stage5Title: "Tahap 5 — Penerbitan Kredit Plastik",
     creditsToBeIssued: "Kredit yang Akan Diterbitkan",
-    fullChainVerified: "Rantai lengkap terverifikasi: Pengumpulan → Angkutan → Akhir Limbah → Tanda tangan VVB.",
+    fullChainVerified: "Chain-of-custody lengkap terverifikasi: Pengumpulan → Angkutan → Akhir Limbah → Tanda tangan VVB.",
     buyer: "Pembeli", verifier: "Verifikator",
     marketPrice: "Referensi harga pasar: $106–$804 per MT (PCX marketplace, 2024). Harga ditetapkan oleh mitra proyek.",
     issueCredit: "Terbitkan Kredit Plastik 🎉",
@@ -426,7 +430,7 @@ const TRANSLATIONS = {
     // Verify tab
     verificationQueue: "Antrean Verifikasi", verifySubtitle: "Batch menunggu tinjauan VVB",
     noPendingVerification: "Tidak ada batch yang menunggu verifikasi.",
-    custodyTrail: "Jejak Rantai Penjagaan",
+    custodyTrail: "Jejak Chain-of-Custody",
     approve: "Setujui →", reject: "Tolak", viewDetails: "Lihat Detail",
     // Records
     batchRecords: "Riwayat Batch", addNewBatch: "+ Batch Baru",
@@ -494,7 +498,7 @@ const TRANSLATIONS = {
     calibCert: "Sertifikat Kalibrasi",
     calibCertNote: "Sertifikat kalibrasi yang masih berlaku wajib ada untuk alat timbang. Unggah foto atau hasil pindai.",
     certAttached: "Sertifikat terlampir",
-    calibCertRequired: "Wajib — bukti kalibrasi harus dilampirkan sesuai persyaratan rantai penjagaan.",
+    calibCertRequired: "Wajib — bukti kalibrasi harus dilampirkan sesuai persyaratan chain-of-custody.",
     weighingPhotoNote: "Foto proses penimbangan sebagai bukti pengumpulan.",
     sigCollector: "Tanda Tangan Pengumpul",
     sigTransportOfficer: "Tanda Tangan Petugas Angkutan",
@@ -626,7 +630,7 @@ const TRANSLATIONS = {
     egPrefix: "mis.",
     rejectionPlaceholderShort: "mis. Kontaminasi terdeteksi, kalibrasi alat timbang kedaluwarsa…",
     verifyBatchTitle: "Verifikasi Batch",
-    verifyBatchDesc: "Periksa catatan rantai penjagaan & anchor blockchain sebuah batch secara publik",
+    verifyBatchDesc: "Periksa catatan chain-of-custody & anchor blockchain sebuah batch secara publik",
     // Misc
     remove: "Hapus", go: "Cari", out: "Keluar",
     hubDepok: "Hub Depok-01",
@@ -727,6 +731,11 @@ const EOW_PROCESSES = [
 // Same stored values, short display labels. The value must stay the full
 // string — it is written to the batch record and feeds the record hash.
 const EOW_PROCESS_OPTIONS = EOW_PROCESSES.map(p => ({ value: p, label: p.split(" — ")[0] }));
+// Display-only short form. Stored values keep the full policy text because it
+// is part of the hashed record; only what the UI renders is shortened.
+function eowLabel(val) {
+  return String(val || "").split(" — ")[0];
+}
 const EPR_BUYERS = [
   "Unilever Indonesia", "Danone AQUA", "Indofood",
   "Nestle Indonesia", "P&G Indonesia",
@@ -1375,6 +1384,7 @@ function withEvidenceAliases(batch) {
     batch.handwrittenWeighingIdentification,
     batch.handwrittenWeightId
   );
+  const lapakBillPhotoDataUrl = firstEvidenceValue(batch.lapakBillPhotoDataUrl, batch.lapakBillPhotoUrl);
   const contaminationPhotoDataUrl = firstEvidenceValue(batch.contaminationPhotoDataUrl, batch.contaminationPhotoUrl);
   const offtakerDeliveryPhotoDataUrl = firstEvidenceValue(batch.offtakerDeliveryPhotoDataUrl, batch.offtakerDeliveryPhotoUrl);
   const downstreamProcessingPhotoDataUrl = firstEvidenceValue(batch.downstreamProcessingPhotoDataUrl, batch.downstreamProcessingPhotoUrl);
@@ -1382,6 +1392,7 @@ function withEvidenceAliases(batch) {
   return {
     ...batch,
     photoDataUrl,
+    lapakBillPhotoDataUrl,
     handwrittenWeighingIdDataUrl,
     collectionPhotoUrl: firstEvidenceValue(batch.collectionPhotoUrl, photoDataUrl),
     handwrittenWeighingIdUrl: firstEvidenceValue(batch.handwrittenWeighingIdUrl, handwrittenWeighingIdDataUrl),
@@ -1758,7 +1769,8 @@ async function loadBatches() {
 // (often ~5MB on mobile browsers) quota. Once a batch is fully accepted, its
 // evidence already lives on the server, so it's safe to drop the local copies.
 const EVIDENCE_BLOB_FIELDS = [
-  "photoDataUrl", "handwrittenWeighingIdDataUrl", "collectionPhotoUrl",
+  "photoDataUrl", "lapakBillPhotoDataUrl", "lapakBillPhotoUrl",
+  "handwrittenWeighingIdDataUrl", "collectionPhotoUrl",
   "transportPhotoDataUrl", "transportPhotoUrl",
   "processingPhotoDataUrl", "processingPhotoUrl",
   "contaminationPhotoDataUrl", "contaminationPhotoUrl",
@@ -2183,6 +2195,7 @@ async function syncPhotosToSheets(sheetsUrl, batch) {
   if (!isValidSheetsUrl(sheetsUrl)) return;
   const photos = [
     { field: "photoDataUrl",               label: "collection" },
+    { field: "lapakBillPhotoDataUrl",      label: "lapak_bill" },
     { field: "handwrittenWeighingIdDataUrl", label: "handwritten_weighing_identification" },
     { field: "transportPhotoDataUrl",      label: "transport" },
     { field: "processingPhotoDataUrl",     label: "processing" },
@@ -2913,7 +2926,7 @@ function CertModal({ record, onClose, lang = "en" }) {
             [t("weight"), `${Number(record.weightKg).toLocaleString()} kg (${record.creditsTonnes?.toFixed(4)} MT)`, false],
             ["Hub", "Hub Depok-01", false],
             ["Weighing Equip.", record.weighingEquipId, true],
-            ["EoW Process", record.eowProcess, false],
+            ["EoW Process", eowLabel(record.eowProcess), false],
             ["Processor", record.processor, false],
             ["EPR Buyer", record.eprBuyer, false],
             ["VVB", record.vvb, false],
@@ -3215,7 +3228,7 @@ function custodyStageRows(batch) {
       when: proAct?.ts || batch.processingEndDate,
       lines: [
         batch.processor && `Processor: ${batch.processor}`,
-        batch.eowProcess && `${batch.eowProcess}`,
+        batch.eowProcess && eowLabel(batch.eowProcess),
       ].filter(Boolean),
       accepted: findAcceptAfter(proAct?.ts)?.ts,
       geo: proAct?.geo || null,
@@ -3244,7 +3257,7 @@ function custodyStageRows(batch) {
       done: Boolean(dspAct || batch.downstreamProcessingEndDate || batch.downstreamEowProcess),
       when: dspAct?.ts || batch.downstreamProcessingEndDate,
       lines: [
-        batch.downstreamEowProcess && `${batch.downstreamEowProcess}`,
+        batch.downstreamEowProcess && eowLabel(batch.downstreamEowProcess),
       ].filter(Boolean),
       geo: dspAct?.geo || null,
       evidence: [
@@ -3686,7 +3699,7 @@ export default function RezyMRVLive() {
   const [stage, setStage] = useState(1);
   const [entryMode, setEntryMode] = useState(null);
   const [activeId, setActiveId] = useState(null);
-  const [col, setCol] = useState({ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", materials: [{ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }], collectorId: COLLECTORS[0], weighingEquipId: SCALES[0], collectionDate: null, notes: "", photoDataUrl: null, handwrittenWeighingIdDataUrl: null, handwrittenInput: "", handwrittenWeighing: null, digitizedScaleKg: "", calibCertUrl: null });
+  const [col, setCol] = useState({ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", materials: [{ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }], collectorId: COLLECTORS[0], weighingEquipId: SCALES[0], collectionDate: null, notes: "", photoDataUrl: null, lapakBillPhotoDataUrl: null, handwrittenWeighingIdDataUrl: null, handwrittenInput: "", handwrittenWeighing: null, digitizedScaleKg: "", calibCertUrl: null });
   const [directMeta, setDirectMeta] = useState({ batchId: "", manifestRef: "", feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", collectorId: COLLECTORS[0], notes: "" });
   const [colGeo, setColGeo] = useState({ lat: "", lng: "" });
   const [trn, setTrn] = useState({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: PICKUP_VEHICLES[0] });
@@ -4317,6 +4330,17 @@ export default function RezyMRVLive() {
     reader.readAsDataURL(file);
   }
 
+  function handleLapakBillPhoto(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const compressed = await compressPhoto(ev.target.result, 1600, 0.85, 150 * 1024) || ev.target.result;
+      setCol(p => ({ ...p, lapakBillPhotoDataUrl: compressed }));
+    };
+    reader.readAsDataURL(file);
+  }
+
   function handleHandwrittenWeighingIdPhoto(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -4471,6 +4495,7 @@ export default function RezyMRVLive() {
 	      { ok: Boolean(col.weighingEquipId), label: "Weighing Equipment" },
       { ok: Boolean((col.notes || "").trim()), label: "Notes / Field Observations" },
       { ok: Boolean(col.photoDataUrl), label: "Collection Photo (chain-of-custody evidence)" },
+      { ok: Boolean(col.lapakBillPhotoDataUrl), label: "Lapak Bill Photo" },
       { ok: Boolean(sigCol), label: "Collector Signature" },
     ])) return;
     setGeoLoading(true);
@@ -4494,6 +4519,7 @@ export default function RezyMRVLive() {
       collectionDate: capturedAt,
       notes: col.notes,
       photoDataUrl: col.photoDataUrl,
+      lapakBillPhotoDataUrl: col.lapakBillPhotoDataUrl,
       handwrittenWeighingIdDataUrl: col.handwrittenWeighingIdDataUrl,
       handwrittenWeighing: col.handwrittenWeighing,
       handwrittenWeighingId: col.handwrittenWeighing?.weighingId || "",
@@ -4916,7 +4942,7 @@ export default function RezyMRVLive() {
     setCertView(updated);
     setActiveId(null);
     setStage(1);
-    setCol({ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", materials: [{ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }], collectorId: COLLECTORS[0], weighingEquipId: SCALES[0], collectionDate: null, notes: "", photoDataUrl: null, handwrittenWeighingIdDataUrl: null, digitizedScaleKg: "", calibCertUrl: null });
+    setCol({ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", materials: [{ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }], collectorId: COLLECTORS[0], weighingEquipId: SCALES[0], collectionDate: null, notes: "", photoDataUrl: null, lapakBillPhotoDataUrl: null, handwrittenWeighingIdDataUrl: null, digitizedScaleKg: "", calibCertUrl: null });
     setColGeo({ lat: "", lng: "" });
     setTrn({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: PICKUP_VEHICLES[0] });
     setTrnGeo({ lat: "", lng: "" });
@@ -5014,6 +5040,7 @@ export default function RezyMRVLive() {
       photoLabel: "Weighing Process Evidence",
       photo: evidenceBatch?.photoDataUrl,
       extraPhotos: [
+        { label: t("lapakBillPhoto"), src: evidenceBatch?.lapakBillPhotoDataUrl },
         { label: "Handwritten Weighing Identification", src: evidenceBatch?.handwrittenWeighingIdDataUrl },
       ].filter(p => p.src),
       signatureLabel: "Collector Signature",
@@ -5156,7 +5183,7 @@ export default function RezyMRVLive() {
                 [t("transportRefShort"), detailView.transportRef],
                 [t("transportDate"), fmtDateTime(detailView.transportDate)],
                 ["Processor", detailView.processor],
-                ["EoW Process", detailView.eowProcess],
+                ["EoW Process", eowLabel(detailView.eowProcess)],
                 [t("procEndDate"), fmtDateTime(detailView.processingEndDate)],
                 ["Material Processed", detailView.processedFeedstockType],
                 ["Accepted Weight", detailView.acceptedWeightKg ? `${Number(detailView.acceptedWeightKg).toLocaleString()} kg` : ""],
@@ -5225,7 +5252,7 @@ export default function RezyMRVLive() {
                       Accepted {Number(m.acceptedWeightKg || 0).toLocaleString()} kg · Rejected {Number(m.rejectedWeightKg || 0).toLocaleString()} kg
                     </div>
                     {(m.processor || m.eowProcess) && (
-                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{[m.processor, m.eowProcess].filter(Boolean).join(" · ")}{m.processingEndDate ? ` · ${fmtDateTime(m.processingEndDate)}` : ""}</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{[m.processor, eowLabel(m.eowProcess)].filter(Boolean).join(" · ")}{m.processingEndDate ? ` · ${fmtDateTime(m.processingEndDate)}` : ""}</div>
                     )}
                   </div>
                 ))}
@@ -5302,7 +5329,7 @@ export default function RezyMRVLive() {
                 </div>
               </div>
             )}
-            {(detailView.photoDataUrl || detailView.handwrittenWeighingIdDataUrl || detailView.transportPhotoDataUrl || detailView.processingPhotoDataUrl || detailView.contaminationPhotoDataUrl || detailView.offtakerDeliveryPhotoDataUrl || detailView.downstreamProcessingPhotoDataUrl || detailView.downstreamContaminationPhotoDataUrl) && (
+            {(detailView.photoDataUrl || detailView.lapakBillPhotoDataUrl || detailView.handwrittenWeighingIdDataUrl || detailView.transportPhotoDataUrl || detailView.processingPhotoDataUrl || detailView.contaminationPhotoDataUrl || detailView.offtakerDeliveryPhotoDataUrl || detailView.downstreamProcessingPhotoDataUrl || detailView.downstreamContaminationPhotoDataUrl) && (
               <div style={{ marginBottom: 14 }}>
                 <SectionTitle>{t("evidencePhotos")}</SectionTitle>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -5310,6 +5337,12 @@ export default function RezyMRVLive() {
                     <div>
                       <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Collection Photo — Weighing Process</div>
                       <img src={detailView.photoDataUrl} alt="collection" style={{ width: "100%", borderRadius: 8, objectFit: "contain", maxHeight: 320, background: C.creamMid }} />
+                    </div>
+                  )}
+                  {detailView.lapakBillPhotoDataUrl && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>{t("lapakBillPhoto")}</div>
+                      <img src={detailView.lapakBillPhotoDataUrl} alt="lapak bill" style={{ width: "100%", borderRadius: 8, objectFit: "contain", maxHeight: 320, background: C.creamMid }} />
                     </div>
                   )}
                   {detailView.handwrittenWeighingIdDataUrl && (
@@ -5637,6 +5670,17 @@ export default function RezyMRVLive() {
                         <div style={{ position: "relative", marginTop: 8 }}>
                           <img src={col.photoDataUrl} alt="preview" style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 8, background: C.creamMid }} />
                           <button onClick={() => setCol(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ marginBottom: 18 }}>
+                      <Lbl>{t("lapakBillPhoto")} <span style={{ color: C.orange, fontWeight: 700 }}>*</span></Lbl>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t("lapakBillPhotoNote")}</div>
+                      <input type="file" accept="image/*" capture="environment" onChange={handleLapakBillPhoto} style={{ fontSize: 12, color: C.muted }} />
+                      {col.lapakBillPhotoDataUrl && (
+                        <div style={{ position: "relative", marginTop: 8 }}>
+                          <img src={col.lapakBillPhotoDataUrl} alt="lapak bill" style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 8, background: C.creamMid }} />
+                          <button onClick={() => setCol(p=>({...p,lapakBillPhotoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
                         </div>
                       )}
                     </div>
@@ -6160,7 +6204,7 @@ export default function RezyMRVLive() {
 	                      <div style={{ alignSelf: isMobile ? "flex-start" : "auto" }}><Badge status={b.status} lang={lang} /></div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3,1fr)", gap: isMobile ? "10px 14px" : "8px 20px", marginBottom: 14 }}>
-                      {[["Hub","Hub Depok-01"],[t("collector"),b.collectorId],["Collection Date",fmtDateTime(b.collectionDate)],[t("transportRefShort"),b.transportRef],["Processor",b.processor],["EoW Process",b.eowProcess]].map(([k,v])=>(
+                      {[["Hub","Hub Depok-01"],[t("collector"),b.collectorId],[t("collectionDate"),fmtDateTime(b.collectionDate)],[t("transportRefShort"),b.transportRef],[t("processorLabel"),b.processor],[t("eowProcess"),eowLabel(b.eowProcess)]].map(([k,v])=>(
                         <InfoRow key={k} label={k} value={v} />
                       ))}
                     </div>
