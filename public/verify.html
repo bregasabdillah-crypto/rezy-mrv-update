@@ -11,16 +11,21 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <style>
     :root{
-      --forest:#1D5C2E; --forest-mid:#2a7a3e; --orange:#E07020;
-      --cream:#D8EDD8; --cream-dark:#B8CEB8; --page:#E4EEE4; --card:#F4FAF4;
-      --charcoal:#111811; --muted:#2d4a33; --muted-light:#4a6a50; --red:#c0392b;
+      --forest:#1D5C2E; --orange:#E07020; --cream-dark:#B8CEB8;
+      --page:#E4EEE4; --card:#F4FAF4; --charcoal:#111811;
+      --muted:#2d4a33; --muted-light:#4a6a50; --red:#c0392b;
     }
     *{box-sizing:border-box}
     body{margin:0;background:var(--page);color:var(--charcoal);
       font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       padding:20px 16px 48px;}
     .wrap{max-width:640px;margin:0 auto}
-    a.back{display:inline-block;font-size:12px;color:var(--forest);text-decoration:none;font-weight:700;margin-bottom:14px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
+    a.back{font-size:12px;color:var(--forest);text-decoration:none;font-weight:700}
+    .langsw{background:var(--cream-dark);border-radius:8px;display:flex;overflow:hidden;flex-shrink:0}
+    .langsw button{background:transparent;color:var(--muted);border:none;padding:6px 14px;
+      font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;letter-spacing:.5px}
+    .langsw button.on{background:var(--forest);color:#fff}
     .head{text-align:center;margin-bottom:20px}
     .head h1{font-size:20px;color:var(--forest);margin:0 0 4px}
     .head p{font-size:12px;color:var(--muted);margin:0;line-height:1.6}
@@ -32,9 +37,9 @@
     input{flex:1;min-width:0;padding:11px 13px;border-radius:9px;border:1.5px solid var(--cream-dark);
       background:#fff;font-size:15px;font-family:inherit;color:var(--charcoal);outline:none}
     input:focus{border-color:var(--forest)}
-    button{background:var(--forest);color:#fff;border:none;border-radius:9px;padding:11px 20px;
+    button.go{background:var(--forest);color:#fff;border:none;border-radius:9px;padding:11px 20px;
       font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap}
-    button:disabled{opacity:.55;cursor:not-allowed}
+    button.go:disabled{opacity:.55;cursor:not-allowed}
     .hint{font-size:11px;color:var(--muted-light);margin-top:8px}
     .status{display:inline-flex;align-items:center;gap:6px;border-radius:20px;
       padding:5px 12px;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}
@@ -47,7 +52,6 @@
     .mono{font-family:'DM Mono',ui-monospace,monospace;font-size:11px;line-height:1.5;word-break:break-all}
     h2{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.6px;text-transform:uppercase;
       margin:20px 0 10px;padding-left:9px;border-left:3px solid var(--orange)}
-    .trail{position:relative;padding-left:4px}
     .step{display:flex;gap:11px;margin-bottom:13px}
     .dot{width:10px;height:10px;border-radius:50%;background:var(--forest);margin-top:5px;flex-shrink:0}
     .step .s{font-size:13px;font-weight:700}
@@ -60,22 +64,27 @@
 </head>
 <body>
   <div class="wrap">
-    <a class="back" href="/">&larr; Back to Rezycology MRV</a>
+    <div class="topbar">
+      <a class="back" id="back" href="/">&larr; <span data-i="back"></span></a>
+      <div class="langsw">
+        <button type="button" id="btn-en">EN</button>
+        <button type="button" id="btn-id">ID</button>
+      </div>
+    </div>
 
     <div class="head">
-      <h1>🔒 Verify a Batch</h1>
-      <p>Independently check a batch's chain-of-custody record against its
-         cryptographic hash and blockchain anchor. No sign-in required.</p>
+      <h1>🔒 <span data-i="title"></span></h1>
+      <p data-i="intro"></p>
     </div>
 
     <div class="card">
-      <label for="bid">Batch ID</label>
+      <label for="bid" data-i="batchIdLabel"></label>
       <form class="row" id="form">
-        <input id="bid" placeholder="e.g. DPK-QNR7HQ" autocomplete="off"
+        <input id="bid" placeholder="DPK-XXXXXX" autocomplete="off"
                autocapitalize="characters" spellcheck="false" />
-        <button id="go" type="submit">Verify</button>
+        <button class="go" id="go" type="submit" data-i="verifyBtn"></button>
       </form>
-      <div class="hint">The batch ID is printed on the collection record and the credit certificate.</div>
+      <div class="hint" data-i="hint"></div>
     </div>
 
     <div id="out"></div>
@@ -85,10 +94,90 @@
 
 <script>
   var API = "https://jyavuamwtrgffhqafext.supabase.co/functions/v1/rezy-mrv-api";
+  var LANG_KEY = "rezy-mrv-lang";
+
+  var T = {
+    en: {
+      back: "Back to Rezycology MRV",
+      title: "Verify a Batch",
+      intro: "Independently check a batch's chain-of-custody record against its cryptographic hash and blockchain anchor. No sign-in required.",
+      batchIdLabel: "Batch ID",
+      verifyBtn: "Verify",
+      hint: "The batch ID is printed on the collection record and the credit certificate.",
+      intact: "✓ Record intact", mismatch: "✕ Hash mismatch", notHashed: "Not yet hashed",
+      anchored: "⛓ Anchored", notAnchored: "Not yet anchored",
+      fBatch: "Batch ID", fMaterial: "Material line", fHub: "Hub", fFeedstock: "Feedstock",
+      fWeight: "Weight", fStage: "Stage", fReview: "Admin review", fCollector: "Collector",
+      fCollectionDate: "Collection date", fTransportRef: "Transport ref.",
+      fProcessor: "Processor", fEow: "End-of-Waste process",
+      hIntegrity: "Integrity", hStored: "Stored hash (SHA-256)", hRecomputed: "Recomputed now",
+      hHashedAt: "Hashed at", hMerkle: "Merkle root",
+      hCustody: "Chain of custody",
+      mismatchNote: "The recomputed hash does not match the stored hash. This record has changed since it was sealed — treat its chain of custody as unverified.",
+      enterId: "Enter a batch ID.",
+      verifying: "Verifying",
+      notFound: "Batch not found.",
+      noRecords: "No records found for",
+      unreachable: "Could not reach the verification service. Check your connection and try again."
+    },
+    id: {
+      back: "Kembali ke Rezycology MRV",
+      title: "Verifikasi Batch",
+      intro: "Periksa secara independen catatan rantai penjagaan sebuah batch terhadap hash kriptografis dan anchor blockchain-nya. Tanpa perlu masuk.",
+      batchIdLabel: "ID Batch",
+      verifyBtn: "Verifikasi",
+      hint: "ID batch tercetak pada catatan pengumpulan dan sertifikat kredit.",
+      intact: "✓ Catatan utuh", mismatch: "✕ Hash tidak cocok", notHashed: "Belum di-hash",
+      anchored: "⛓ Ter-anchor", notAnchored: "Belum ter-anchor",
+      fBatch: "ID Batch", fMaterial: "Baris material", fHub: "Hub", fFeedstock: "Bahan Baku",
+      fWeight: "Berat", fStage: "Tahap", fReview: "Tinjauan admin", fCollector: "Pengumpul",
+      fCollectionDate: "Tanggal pengumpulan", fTransportRef: "Ref. angkutan",
+      fProcessor: "Pemroses", fEow: "Proses Akhir Limbah",
+      hIntegrity: "Integritas", hStored: "Hash tersimpan (SHA-256)", hRecomputed: "Dihitung ulang sekarang",
+      hHashedAt: "Di-hash pada", hMerkle: "Merkle root",
+      hCustody: "Rantai penjagaan",
+      mismatchNote: "Hash yang dihitung ulang tidak cocok dengan hash tersimpan. Catatan ini berubah sejak disegel — perlakukan rantai penjagaannya sebagai belum terverifikasi.",
+      enterId: "Masukkan ID batch.",
+      verifying: "Memverifikasi",
+      notFound: "Batch tidak ditemukan.",
+      noRecords: "Tidak ada catatan untuk",
+      unreachable: "Tidak dapat menghubungi layanan verifikasi. Periksa koneksi Anda lalu coba lagi."
+    }
+  };
+
+  // Language: ?lang= wins, then the app's stored choice, else English.
+  function initialLang() {
+    var q = new URLSearchParams(location.search).get("lang");
+    if (q === "en" || q === "id") return q;
+    try { var s = localStorage.getItem(LANG_KEY); if (s === "en" || s === "id") return s; } catch (e) {}
+    return "en";
+  }
+  var lang = initialLang();
+  var t = function (k) { return (T[lang] && T[lang][k]) || T.en[k] || k; };
+
   var out = document.getElementById("out");
   var form = document.getElementById("form");
   var input = document.getElementById("bid");
   var go = document.getElementById("go");
+  var lastResults = null;
+
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i]").forEach(function (el) {
+      el.textContent = t(el.getAttribute("data-i"));
+    });
+    document.getElementById("btn-en").className = lang === "en" ? "on" : "";
+    document.getElementById("btn-id").className = lang === "id" ? "on" : "";
+    document.getElementById("back").href = "/";
+    if (lastResults) out.innerHTML = lastResults.map(renderResult).join("");
+  }
+  function setLang(v) {
+    lang = v;
+    try { localStorage.setItem(LANG_KEY, v); } catch (e) {}
+    applyLang();
+  }
+  document.getElementById("btn-en").addEventListener("click", function () { setLang("en"); });
+  document.getElementById("btn-id").addEventListener("click", function () { setLang("id"); });
 
   function esc(v) {
     if (v === null || v === undefined || v === "") return "—";
@@ -105,7 +194,7 @@
     if (!ts) return "—";
     var d = new Date(ts);
     if (isNaN(d.getTime())) return String(ts);
-    return d.toLocaleString("en-GB", {
+    return d.toLocaleString(lang === "id" ? "id-ID" : "en-GB", {
       day: "2-digit", month: "short", year: "numeric",
       hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta"
     }) + " WIB";
@@ -113,50 +202,46 @@
 
   function renderResult(r) {
     var badge = r.match
-      ? '<span class="status ok">✓ Record intact</span>'
+      ? '<span class="status ok">' + t("intact") + "</span>"
       : (r.storedHash
-          ? '<span class="status bad">✕ Hash mismatch</span>'
-          : '<span class="status warn">Not yet hashed</span>');
-
+          ? '<span class="status bad">' + t("mismatch") + "</span>"
+          : '<span class="status warn">' + t("notHashed") + "</span>");
     var anchor = r.anchored
-      ? '<span class="status ok">⛓ Anchored</span>'
-      : '<span class="status warn">Not yet anchored</span>';
+      ? '<span class="status ok">' + t("anchored") + "</span>"
+      : '<span class="status warn">' + t("notAnchored") + "</span>";
 
-    var html = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
-      badge + anchor + "</div>";
+    var html = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' + badge + anchor + "</div>";
 
     html += '<div class="grid">' +
-      field("Batch ID", r.batchId) +
-      field("Material line", r.materialIndex ? "M" + r.materialIndex : "—") +
-      field("Hub", r.hub) +
-      field("Feedstock", r.feedstockType) +
-      field("Weight", r.weightKg ? Number(r.weightKg).toLocaleString() + " kg" : "—") +
-      field("Stage", r.status) +
-      field("Admin review", r.reviewStatus) +
-      field("Collector", r.collectorId) +
-      field("Collection date", r.collectionDate ? fmt(r.collectionDate) : "—") +
-      field("Transport ref.", r.transportRef) +
-      field("Processor", r.processor) +
-      field("End-of-Waste process", r.eowProcess) +
+      field(t("fBatch"), r.batchId) +
+      field(t("fMaterial"), r.materialIndex ? "M" + r.materialIndex : "—") +
+      field(t("fHub"), r.hub) +
+      field(t("fFeedstock"), r.feedstockType) +
+      field(t("fWeight"), r.weightKg ? Number(r.weightKg).toLocaleString() + " kg" : "—") +
+      field(t("fStage"), r.status) +
+      field(t("fReview"), r.reviewStatus) +
+      field(t("fCollector"), r.collectorId) +
+      field(t("fCollectionDate"), r.collectionDate ? fmt(r.collectionDate) : "—") +
+      field(t("fTransportRef"), r.transportRef) +
+      field(t("fProcessor"), r.processor) +
+      field(t("fEow"), r.eowProcess) +
       "</div>";
 
-    html += "<h2>Integrity</h2>";
+    html += "<h2>" + t("hIntegrity") + "</h2>";
     html += '<div class="grid">' +
-      field("Stored hash (SHA-256)", r.storedHash, true) +
-      field("Recomputed now", r.recomputedHash, true) +
-      field("Hashed at", r.hashComputedAt ? fmt(r.hashComputedAt) : "—") +
-      field("Merkle root", r.anchorProof && r.anchorProof.merkleRoot, true) +
+      field(t("hStored"), r.storedHash, true) +
+      field(t("hRecomputed"), r.recomputedHash, true) +
+      field(t("hHashedAt"), r.hashComputedAt ? fmt(r.hashComputedAt) : "—") +
+      field(t("hMerkle"), r.anchorProof && r.anchorProof.merkleRoot, true) +
       "</div>";
 
     if (!r.match && r.storedHash) {
-      html += '<div class="msg err" style="text-align:left;margin-top:10px">' +
-        "The recomputed hash does not match the stored hash. This record has changed " +
-        "since it was sealed — treat its chain of custody as unverified.</div>";
+      html += '<div class="msg err" style="text-align:left;margin-top:10px">' + t("mismatchNote") + "</div>";
     }
 
     var acts = r.activities || [];
     if (acts.length) {
-      html += "<h2>Chain of custody</h2><div class='trail'>";
+      html += "<h2>" + t("hCustody") + "</h2><div>";
       for (var i = acts.length - 1; i >= 0; i--) {
         var a = acts[i];
         html += '<div class="step"><div class="dot"></div><div>' +
@@ -174,34 +259,36 @@
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var id = (input.value || "").trim().toUpperCase();
-    if (!id) { out.innerHTML = card('<div class="msg err">Enter a batch ID.</div>'); return; }
+    if (!id) { lastResults = null; out.innerHTML = card('<div class="msg err">' + t("enterId") + "</div>"); return; }
 
     go.disabled = true;
-    out.innerHTML = card('<div class="msg">Verifying ' + esc(id) + "…</div>");
+    lastResults = null;
+    out.innerHTML = card('<div class="msg">' + t("verifying") + " " + esc(id) + "…</div>");
 
     fetch(API + "?action=verify_batch&batch_id=" + encodeURIComponent(id))
       .then(function (res) { return res.json(); })
       .then(function (json) {
         if (!json || !json.ok) {
-          out.innerHTML = card('<div class="msg err">' +
-            esc((json && json.error) || "Batch not found.") + "</div>");
+          out.innerHTML = card('<div class="msg err">' + esc((json && json.error) || t("notFound")) + "</div>");
           return;
         }
         var results = json.results || [];
         if (!results.length) {
-          out.innerHTML = card('<div class="msg err">No records found for ' + esc(id) + ".</div>");
+          out.innerHTML = card('<div class="msg err">' + t("noRecords") + " " + esc(id) + ".</div>");
           return;
         }
+        lastResults = results;
         out.innerHTML = results.map(renderResult).join("");
       })
       .catch(function () {
-        out.innerHTML = card('<div class="msg err">' +
-          "Could not reach the verification service. Check your connection and try again.</div>");
+        out.innerHTML = card('<div class="msg err">' + t("unreachable") + "</div>");
       })
       .then(function () { go.disabled = false; });
   });
 
-  // Allow deep links like /verify.html?batch=DPK-QNR7HQ
+  applyLang();
+
+  // Deep link: /verify.html?batch=DPK-XXXXXX
   var pre = new URLSearchParams(location.search).get("batch");
   if (pre) { input.value = pre; form.dispatchEvent(new Event("submit")); }
 </script>

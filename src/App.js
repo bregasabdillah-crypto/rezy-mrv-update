@@ -305,6 +305,8 @@ const TRANSLATIONS = {
     totalSelectedWeight: "Total Selected Weight",
     egPrefix: "e.g.",
     rejectionPlaceholderShort: "e.g. Contamination detected, weighing equipment calibration expired…",
+    verifyBatchTitle: "Verify a Batch",
+    verifyBatchDesc: "Publicly check a batch's chain-of-custody record & blockchain anchor",
     // Misc
     remove: "Remove", go: "Go", out: "Out",
     hubDepok: "Hub Depok-01",
@@ -587,6 +589,8 @@ const TRANSLATIONS = {
     totalSelectedWeight: "Total Berat Terpilih",
     egPrefix: "mis.",
     rejectionPlaceholderShort: "mis. Kontaminasi terdeteksi, kalibrasi alat timbang kedaluwarsa…",
+    verifyBatchTitle: "Verifikasi Batch",
+    verifyBatchDesc: "Periksa catatan rantai penjagaan & anchor blockchain sebuah batch secara publik",
     // Misc
     remove: "Hapus", go: "Cari", out: "Keluar",
     hubDepok: "Hub Depok-01",
@@ -1655,6 +1659,7 @@ const STORAGE_KEY = "rezy-mrv-batches-depok";
 const SETTINGS_KEY = "rezy-mrv-settings";
 const ADMIN_REVIEW_DEVICE_KEY = "rezy-mrv-admin-review-device";
 const SETTINGS_DEVICE_KEY = "rezy-mrv-settings-device";
+const LANG_KEY = "rezy-mrv-lang";
 const DEFAULT_SHEETS_URL = "https://jyavuamwtrgffhqafext.supabase.co/functions/v1/rezy-mrv-api";
 const JAKARTA_TIME_ZONE = "Asia/Jakarta";
 
@@ -3050,7 +3055,7 @@ function LoginScreen({ onLogin, lang, setLang }) {
         </div>
 
         {/* Verify a batch */}
-        <a href="/verify.html" style={{
+        <a href={`/verify.html?lang=${lang}`} style={{
           display: "block", marginTop: 16, textDecoration: "none",
           background: C.cardBg, borderRadius: 14, padding: "14px 16px",
           border: `1px solid ${C.creamDark}`,
@@ -3058,9 +3063,9 @@ function LoginScreen({ onLogin, lang, setLang }) {
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.forest }}>🔒 Verify a Batch</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.forest }}>🔒 {t("verifyBatchTitle")}</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                Publicly check a batch's chain-of-custody record &amp; blockchain anchor
+                {t("verifyBatchDesc")}
               </div>
             </div>
             <div style={{ fontSize: 18, color: C.forest }}>→</div>
@@ -3586,7 +3591,14 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function RezyMRVLive() {
   const [role, setRole] = useState(null);
-  const [lang, setLang] = useState("en");
+  // Persisted so the choice survives a reload and carries into /verify.html.
+  const [lang, setLangState] = useState(() => {
+    try { return localStorage.getItem(LANG_KEY) || "en"; } catch { return "en"; }
+  });
+  const setLang = (v) => {
+    setLangState(v);
+    try { localStorage.setItem(LANG_KEY, v); } catch {}
+  };
   const t = useT(lang);
   const [tab, setTab] = useState("dashboard");
   const [batches, setBatches] = useState([]);
