@@ -81,6 +81,14 @@ const TRANSLATIONS = {
     notesPlaceholder: "Condition of batch, contamination notes, etc.",
     collectionPhoto: "Collection Photo (chain-of-custody evidence)",
     lapakBillPhoto: "Lapak Bill Photo",
+    qcReportPhoto: "QC Report Photo",
+    qcReportPhotoNote: "Photograph the quality-control report for this processed line.",
+    autoCalculated: "auto",
+    outputExceedsInput: "Contamination + rejected exceeds the input weight of this line",
+    inputLabelShort: "input",
+    acceptedLabelShort: "accepted",
+    contaminationLabelShort: "contamination",
+    rejectedLabelShort: "rejected",
     lapakBillPhotoNote: "Photograph the bill/receipt issued by the lapak for this collection.",
     creditEstimate: "pending full chain + VVB",
     logCollection: "Save →",
@@ -385,6 +393,14 @@ const TRANSLATIONS = {
     notesPlaceholder: "Kondisi batch, catatan kontaminasi, dll.",
     collectionPhoto: "Foto Pengumpulan (bukti chain-of-custody)",
     lapakBillPhoto: "Foto Nota Lapak",
+    qcReportPhoto: "Foto Laporan QC",
+    qcReportPhotoNote: "Foto laporan kendali mutu untuk baris material ini.",
+    autoCalculated: "otomatis",
+    outputExceedsInput: "Kontaminasi + ditolak melebihi berat masuk baris ini",
+    inputLabelShort: "masuk",
+    acceptedLabelShort: "diterima",
+    contaminationLabelShort: "kontaminasi",
+    rejectedLabelShort: "ditolak",
     lapakBillPhotoNote: "Foto nota/kuitansi yang diterbitkan lapak untuk pengumpulan ini.",
     creditEstimate: "menunggu chain-of-custody lengkap + VVB",
     logCollection: "Simpan →",
@@ -1388,6 +1404,7 @@ function withEvidenceAliases(batch) {
   const contaminationPhotoDataUrl = firstEvidenceValue(batch.contaminationPhotoDataUrl, batch.contaminationPhotoUrl);
   const offtakerDeliveryPhotoDataUrl = firstEvidenceValue(batch.offtakerDeliveryPhotoDataUrl, batch.offtakerDeliveryPhotoUrl);
   const downstreamProcessingPhotoDataUrl = firstEvidenceValue(batch.downstreamProcessingPhotoDataUrl, batch.downstreamProcessingPhotoUrl);
+  const downstreamQcReportPhotoDataUrl = firstEvidenceValue(batch.downstreamQcReportPhotoDataUrl, batch.downstreamQcReportPhotoUrl);
   const downstreamContaminationPhotoDataUrl = firstEvidenceValue(batch.downstreamContaminationPhotoDataUrl, batch.downstreamContaminationPhotoUrl);
   return {
     ...batch,
@@ -1401,6 +1418,7 @@ function withEvidenceAliases(batch) {
     offtakerDeliveryPhotoDataUrl,
     offtakerDeliveryPhotoUrl: firstEvidenceValue(batch.offtakerDeliveryPhotoUrl, offtakerDeliveryPhotoDataUrl),
     downstreamProcessingPhotoDataUrl,
+    downstreamQcReportPhotoDataUrl,
     downstreamProcessingPhotoUrl: firstEvidenceValue(batch.downstreamProcessingPhotoUrl, downstreamProcessingPhotoDataUrl),
     downstreamContaminationPhotoDataUrl,
     downstreamContaminationPhotoUrl: firstEvidenceValue(batch.downstreamContaminationPhotoUrl, downstreamContaminationPhotoDataUrl),
@@ -1776,6 +1794,7 @@ const EVIDENCE_BLOB_FIELDS = [
   "contaminationPhotoDataUrl", "contaminationPhotoUrl",
   "offtakerTransportPhotoDataUrl", "offtakerDeliveryPhotoDataUrl", "offtakerDeliveryPhotoUrl",
   "downstreamProcessingPhotoDataUrl", "downstreamProcessingPhotoUrl",
+  "downstreamQcReportPhotoDataUrl", "downstreamQcReportPhotoUrl",
   "downstreamContaminationPhotoDataUrl", "downstreamContaminationPhotoUrl",
   "calibCertUrl",
   "sigCollection", "sigTransport", "sigProcessing", "sigOfftakerTransport", "sigDownstreamProcessing",
@@ -2203,6 +2222,7 @@ async function syncPhotosToSheets(sheetsUrl, batch) {
     { field: "calibCertUrl",               label: "calibration_certificate" },
     { field: "offtakerDeliveryPhotoDataUrl", label: "offtaker_delivery" },
     { field: "downstreamProcessingPhotoDataUrl", label: "downstream_processing" },
+    { field: "downstreamQcReportPhotoDataUrl", label: "downstream_qc_report" },
     { field: "downstreamContaminationPhotoDataUrl", label: "downstream_contamination" },
   ];
   if (isSupabaseFunctionUrl(sheetsUrl)) {
@@ -3709,7 +3729,7 @@ export default function RezyMRVLive() {
   const [oft, setOft] = useState({ selectedBatchIds: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
   const [oftGeo, setOftGeo] = useState({ lat: "", lng: "" });
   const [offtakerPage, setOfftakerPage] = useState(0);
-  const [dsp, setDsp] = useState({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+  const [dsp, setDsp] = useState({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
   const [dspGeo, setDspGeo] = useState({ lat: "", lng: "" });
   // Signatures per stage
   const [sigCol,   setSigCol]   = useState(null); // Collection
@@ -4196,7 +4216,7 @@ export default function RezyMRVLive() {
     setPrcGeo({ lat: "", lng: "" });
     setOft({ selectedBatchIds: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
     setOftGeo({ lat: "", lng: "" });
-    setDsp({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+    setDsp({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setDspGeo({ lat: "", lng: "" });
     setSigCol(null);
     setSigTrn(null);
@@ -4458,6 +4478,17 @@ export default function RezyMRVLive() {
     reader.onload = async (ev) => {
       const compressed = await compressPhoto(ev.target.result, 1600, 0.85, 150 * 1024) || ev.target.result;
       setDsp(p => ({ ...p, photoDataUrl: compressed }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleDownstreamQcReportPhoto(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const compressed = await compressPhoto(ev.target.result, 1600, 0.85, 150 * 1024) || ev.target.result;
+      setDsp(p => ({ ...p, qcReportPhotoDataUrl: compressed }));
     };
     reader.readAsDataURL(file);
   }
@@ -4829,10 +4860,12 @@ export default function RezyMRVLive() {
     const dspMaterial = materialsAvail.find((m, i) => String(i + 1) === String(dsp.processedMaterialIndex)) || materialsAvail[0];
     const processedFeedstockType = dspMaterial?.feedstockType || "";
     const processedWeightKg = Number(dspMaterial?.weightKg) || 0;
-    const acceptedWeightKg = Number(dsp.acceptedWeightKg) || 0;
     const rejectedWeightKg = Number(dsp.rejectedWeightKg) || 0;
     const contaminationKg = Number(dsp.contaminationKg) || 0;
-    const yieldVarianceKg = processedWeightKg - (acceptedWeightKg + rejectedWeightKg);
+    // Accepted is derived, not entered: whatever is left of the input line.
+    const acceptedWeightKg = Math.max(0, processedWeightKg - contaminationKg - rejectedWeightKg);
+    // Yield variance is the material that did not survive processing.
+    const yieldVarianceKg = processedWeightKg - acceptedWeightKg;
     const yieldVariancePct = processedWeightKg > 0 ? (yieldVarianceKg / processedWeightKg) * 100 : 0;
     if (!requireFields([
       { ok: Boolean(active?.batchId), label: "Batch ID" },
@@ -4840,8 +4873,15 @@ export default function RezyMRVLive() {
       { ok: materialsAvail.length <= 1 || Boolean(dsp.processedMaterialIndex), label: "Material Processed" },
       { ok: Boolean(dsp.eowProcess), label: "End-of-Waste Process" },
       { ok: Boolean(dsp.photoDataUrl), label: "Downstream Processing Photo" },
+      { ok: Boolean(dsp.qcReportPhotoDataUrl), label: "QC Report Photo" },
       { ok: Boolean(sigDsp), label: "Downstream Processor Signature" },
     ])) return;
+    // Contamination + rejected cannot exceed the line's input weight, or the
+    // derived accepted weight would go negative.
+    if (contaminationKg + rejectedWeightKg > processedWeightKg) {
+      showToast(`${t("outputExceedsInput")} (${(contaminationKg + rejectedWeightKg).toLocaleString()} kg > ${processedWeightKg.toLocaleString()} kg)`, "err");
+      return;
+    }
     if (rejectedWeightKg > acceptedWeightKg) {
       showToast(`${t("rejectedExceedsAccepted")} (${rejectedWeightKg} kg > ${acceptedWeightKg} kg)`, "err");
       return;
@@ -4870,6 +4910,7 @@ export default function RezyMRVLive() {
       downstreamYieldVarianceKg: yieldVarianceKg,
       downstreamYieldVariancePct: yieldVariancePct,
       downstreamProcessingPhotoDataUrl: dsp.photoDataUrl,
+      downstreamQcReportPhotoDataUrl: dsp.qcReportPhotoDataUrl,
     };
 
     mutateBatches(prev => prev.map(b => b.id === activeId ? {
@@ -4950,7 +4991,7 @@ export default function RezyMRVLive() {
     setPrcGeo({ lat: "", lng: "" });
     setOft({ selectedBatchIds: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
     setOftGeo({ lat: "", lng: "" });
-    setDsp({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+    setDsp({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setDspGeo({ lat: "", lng: "" });
     setSigCol(null); setSigTrn(null); setSigPrc(null); setSigOft(null); setSigDsp(null); setSigVrf(null); setSigCred(null);
     setTab("records");
@@ -5111,6 +5152,22 @@ export default function RezyMRVLive() {
   useEffect(() => {
     setReviewPage(1);
   }, [reviewQuery, reviewStageFilter]);
+
+  // ── Downstream Processing: derived weights ────────────────────────────────
+  // Accepted is no longer typed in. It is whatever survives the line:
+  //   accepted = input - contamination - rejected
+  // Yield variance is therefore the material that did NOT survive, i.e.
+  // contamination + rejected, which is exactly input - accepted.
+  const dspMaterialsAvail = active?.offtakerMaterials || [];
+  const dspSelectedMaterial =
+    dspMaterialsAvail.find((m, i) => String(i + 1) === String(dsp.processedMaterialIndex)) || dspMaterialsAvail[0];
+  const dspInputKg = Number(dspSelectedMaterial?.weightKg) || 0;
+  const dspRejectedKg = Number(dsp.rejectedWeightKg) || 0;
+  const dspContaminationKg = Number(dsp.contaminationKg) || 0;
+  const dspOverAllocated = dspRejectedKg + dspContaminationKg > dspInputKg;
+  const dspAcceptedKg = Math.max(0, dspInputKg - dspContaminationKg - dspRejectedKg);
+  const dspYieldVarianceKg = dspInputKg - dspAcceptedKg;
+  const dspYieldVariancePct = dspInputKg > 0 ? (dspYieldVarianceKg / dspInputKg) * 100 : 0;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   if (!role) return <LoginScreen onLogin={r => { setRole(r); setTab("dashboard"); }} lang={lang} setLang={setLang} />;
@@ -5329,7 +5386,7 @@ export default function RezyMRVLive() {
                 </div>
               </div>
             )}
-            {(detailView.photoDataUrl || detailView.lapakBillPhotoDataUrl || detailView.handwrittenWeighingIdDataUrl || detailView.transportPhotoDataUrl || detailView.processingPhotoDataUrl || detailView.contaminationPhotoDataUrl || detailView.offtakerDeliveryPhotoDataUrl || detailView.downstreamProcessingPhotoDataUrl || detailView.downstreamContaminationPhotoDataUrl) && (
+            {(detailView.photoDataUrl || detailView.lapakBillPhotoDataUrl || detailView.downstreamQcReportPhotoDataUrl || detailView.handwrittenWeighingIdDataUrl || detailView.transportPhotoDataUrl || detailView.processingPhotoDataUrl || detailView.contaminationPhotoDataUrl || detailView.offtakerDeliveryPhotoDataUrl || detailView.downstreamProcessingPhotoDataUrl || detailView.downstreamContaminationPhotoDataUrl) && (
               <div style={{ marginBottom: 14 }}>
                 <SectionTitle>{t("evidencePhotos")}</SectionTitle>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -5379,6 +5436,12 @@ export default function RezyMRVLive() {
                     <div>
                       <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>Downstream Processing</div>
                       <img src={detailView.downstreamProcessingPhotoDataUrl} alt="downstream processing" style={{ width: "100%", borderRadius: 8, objectFit: "contain", maxHeight: 320, background: C.creamMid }} />
+                    </div>
+                  )}
+                  {detailView.downstreamQcReportPhotoDataUrl && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }}>{t("qcReportPhoto")}</div>
+                      <img src={detailView.downstreamQcReportPhotoDataUrl} alt="qc report" style={{ width: "100%", borderRadius: 8, objectFit: "contain", maxHeight: 320, background: C.creamMid }} />
                     </div>
                   )}
                   {detailView.downstreamContaminationPhotoDataUrl && (
@@ -6034,30 +6097,25 @@ export default function RezyMRVLive() {
                       {SHOW_MAP_PICKER && <MapPicker value={dspGeo} onChange={setDspGeo} lang={lang} />}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 13, marginBottom: 13 }}>
-                      <Inp label={t("acceptedWeight")} type="number" value={dsp.acceptedWeightKg} onChange={v => setDsp(p=>({...p,acceptedWeightKg:v}))} placeholder={`${t("egPrefix")} 1200`} />
                       <Inp label={t("rejectedWeight")} type="number" value={dsp.rejectedWeightKg} onChange={v => setDsp(p=>({...p,rejectedWeightKg:v}))} placeholder={`${t("egPrefix")} 50`} />
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
                       <Inp label={t("contaminationVolume")} type="number" value={dsp.contaminationKg} onChange={v => setDsp(p=>({...p,contaminationKg:v}))} placeholder={`${t("egPrefix")} 15`} />
+                    </div>
+                    {/* Accepted is derived, never typed: input - contamination - rejected. */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
+                      <Inp label={`${t("acceptedWeight")} (${t("autoCalculated")})`} value={`${dspAcceptedKg.toLocaleString()} kg`} onChange={() => {}} disabled />
                       <div>
                         <Lbl>{t("contaminationNote")}</Lbl>
                         <textarea value={dsp.contaminationNote} onChange={e => setDsp(p=>({...p,contaminationNote:e.target.value}))} rows={3} placeholder={t("contaminationNotePlaceholder")} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${C.creamDark}`, background: C.white, fontSize: 13, color: C.charcoal, outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
                       </div>
                     </div>
-                    {(() => {
-                      const dspMaterialsAvail = active?.offtakerMaterials || [];
-                      const dspMaterial = dspMaterialsAvail.find((m, i) => String(i + 1) === String(dsp.processedMaterialIndex)) || dspMaterialsAvail[0];
-                      const processedWeightKg = Number(dspMaterial?.weightKg) || 0;
-                      const acceptedKg = Number(dsp.acceptedWeightKg) || 0;
-                      const rejectedKg = Number(dsp.rejectedWeightKg) || 0;
-                      const yieldVarianceKg = processedWeightKg - (acceptedKg + rejectedKg);
-                      const yieldVariancePct = processedWeightKg > 0 ? (yieldVarianceKg / processedWeightKg) * 100 : 0;
-                      return (
-                        <div style={{ marginBottom: 18, background: C.creamMid, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.charcoal }}>
-                          <strong>{t("yieldVariance")}:</strong> {yieldVarianceKg.toLocaleString()} kg ({yieldVariancePct.toFixed(1)}%) — based on {processedWeightKg.toLocaleString()} kg input vs. {acceptedKg.toLocaleString()} kg accepted + {rejectedKg.toLocaleString()} kg rejected.
-                        </div>
-                      );
-                    })()}
+                    {dspOverAllocated && (
+                      <div style={{ marginBottom: 12, background: "#fee2e2", border: `1px solid #f3b4ae`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.red, fontWeight: 600 }}>
+                        {t("outputExceedsInput")} ({(dspContaminationKg + dspRejectedKg).toLocaleString()} kg &gt; {dspInputKg.toLocaleString()} kg)
+                      </div>
+                    )}
+                    <div style={{ marginBottom: 18, background: C.creamMid, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.charcoal }}>
+                      <strong>{t("yieldVariance")}:</strong> {dspYieldVarianceKg.toLocaleString()} kg ({dspYieldVariancePct.toFixed(1)}%) — {dspInputKg.toLocaleString()} kg {t("inputLabelShort")} − {dspAcceptedKg.toLocaleString()} kg {t("acceptedLabelShort")} = {dspContaminationKg.toLocaleString()} kg {t("contaminationLabelShort")} + {dspRejectedKg.toLocaleString()} kg {t("rejectedLabelShort")}.
+                    </div>
                     <div style={{ marginBottom: 18 }}>
                       <Lbl>{t("processingPhoto")}</Lbl>
                       <input type="file" accept="image/*" capture="environment" onChange={handleDownstreamProcessingPhoto} style={{ fontSize: 12, color: C.muted }} />
@@ -6065,6 +6123,17 @@ export default function RezyMRVLive() {
                         <div style={{ position: "relative", marginTop: 8 }}>
                           <img src={dsp.photoDataUrl} alt="downstream processing" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 8 }} />
                           <button onClick={() => setDsp(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ marginBottom: 18 }}>
+                      <Lbl>{t("qcReportPhoto")} <span style={{ color: C.orange, fontWeight: 700 }}>*</span></Lbl>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t("qcReportPhotoNote")}</div>
+                      <input type="file" accept="image/*" capture="environment" onChange={handleDownstreamQcReportPhoto} style={{ fontSize: 12, color: C.muted }} />
+                      {dsp.qcReportPhotoDataUrl && (
+                        <div style={{ position: "relative", marginTop: 8 }}>
+                          <img src={dsp.qcReportPhotoDataUrl} alt="qc report" style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 8, background: C.creamMid }} />
+                          <button onClick={() => setDsp(p=>({...p,qcReportPhotoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
                         </div>
                       )}
                     </div>
