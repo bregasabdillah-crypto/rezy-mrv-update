@@ -1,0 +1,8 @@
+{
+  "name": "Rezycology MRV",
+  "short_name": "Rezy MRV",
+  "description": "Internal MRV collection and verification app for Rezycology.",
+  "start_url": "/", "scope": "/", "display": "standalone", "orientation": "portrait",
+  "background_color": "#E4EEE4", "theme_color": "#1D5C2E",
+  "categories": ["business", "productivity"]
+}
