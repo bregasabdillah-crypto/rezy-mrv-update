@@ -224,6 +224,17 @@ const TRANSLATIONS = {
     noPendingReview: "No operator inputs pending review.",
     showingLabel: "Showing",
     ofLabel: "of",
+    // Custody + Settings tabs
+    custodySubtitle: "Verifiable material movement from collector to processing hub",
+    inProgress: "In progress",
+    searchLabel: "Search",
+    batchLabelShort: "Batch",
+    backendSync: "Backend Sync",
+    backendUrlLabel: "Backend URL (Apps Script or Supabase)",
+    syncExistingToBackend: "Sync existing batches to backend",
+    generateFromBackend: "Generate app data from backend",
+    adminReviewDevice: "Admin Review Device",
+    settingsAccessDevice: "Settings Access Device",
     // Misc
     remove: "Remove", go: "Go", out: "Out",
     hubDepok: "Hub Depok-01",
@@ -425,6 +436,17 @@ const TRANSLATIONS = {
     noPendingReview: "Tidak ada input operator yang menunggu tinjauan.",
     showingLabel: "Menampilkan",
     ofLabel: "dari",
+    // Custody + Settings tabs
+    custodySubtitle: "Pergerakan material yang dapat diverifikasi dari pengepul ke hub pemrosesan",
+    inProgress: "Sedang berjalan",
+    searchLabel: "Cari",
+    batchLabelShort: "Batch",
+    backendSync: "Sinkronisasi Backend",
+    backendUrlLabel: "URL Backend (Apps Script atau Supabase)",
+    syncExistingToBackend: "Sinkronkan batch yang ada ke backend",
+    generateFromBackend: "Buat data aplikasi dari backend",
+    adminReviewDevice: "Perangkat Tinjauan Admin",
+    settingsAccessDevice: "Perangkat Akses Pengaturan",
     // Misc
     remove: "Hapus", go: "Cari", out: "Keluar",
     hubDepok: "Hub Depok-01",
@@ -3040,6 +3062,7 @@ function custodyDuration(stages) {
 }
 
 function ChainOfCustodyPanel({ batches, lang }) {
+  const t = useT(lang);
   const eligible = batches.filter(b => (b.reviewStatus || "pending") !== "pending");
   const sorted = [...eligible].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   const [selectedId, setSelectedId] = useState(sorted[0]?.batchId || "");
@@ -3059,7 +3082,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
   if (!batch) {
     return (
       <div>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>Chain of Custody</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>{t("chainOfCustody")}</h1>
         <p style={{ color: C.muted, fontSize: 13 }}>No accepted batches yet. Batches appear here once they clear admin review.</p>
       </div>
     );
@@ -3079,14 +3102,14 @@ function ChainOfCustodyPanel({ batches, lang }) {
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>Chain of Custody</h1>
-          <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Verifiable material movement from collector to processing hub</p>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>{t("chainOfCustody")}</h1>
+          <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>{t("custodySubtitle")}</p>
         </div>
         <div style={{ minWidth: 220 }}>
-          <Inp label="Search" value={custodySearch} onChange={setCustodySearch} placeholder="Search by date, name, or batch ID…" />
+          <Inp label={t("searchLabel")} value={custodySearch} onChange={setCustodySearch} placeholder="Search by date, name, or batch ID…" />
         </div>
         <div style={{ minWidth: 220 }}>
-          <Sel label="Batch" value={batch.batchId} onChange={setSelectedId}
+          <Sel label={t("batchLabelShort")} value={batch.batchId} onChange={setSelectedId}
             options={filteredSorted.map(b => ({
               value: b.batchId,
               label: `${b.batchId} · ${maskName(b.collectorId || b.loggedBy) || "—"} · ${fmtDateTime(b.collectionDate).split(" at")[0]}`,
@@ -3104,7 +3127,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
             {allDone ? (
               <span style={{ fontSize: 11, padding: "4px 12px", borderRadius: 999, background: C.cream, color: C.forestDark, fontWeight: 700 }}>✓ End-of-waste verified</span>
             ) : (
-              <span style={{ fontSize: 11, padding: "4px 12px", borderRadius: 999, background: C.orangeLight, color: C.white, fontWeight: 700 }}>In progress</span>
+              <span style={{ fontSize: 11, padding: "4px 12px", borderRadius: 999, background: C.orangeLight, color: C.white, fontWeight: 700 }}>{t("inProgress")}</span>
             )}
             <div style={{ fontSize: 11, color: C.creamMid, marginTop: 4 }}>{batch.hub || "Hub Depok-01"} · {fmtDateTime(batch.collectionDate).split(" at")[0]}</div>
           </div>
@@ -6163,12 +6186,12 @@ export default function RezyMRVLive() {
           {/* ════════════════ SETTINGS ════════════════ */}
           {tab === "settings" && canAccess("settings") && (
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>Settings</h1>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>{t("settingsTitle")}</h1>
               <p style={{ color: C.muted, fontSize: 13, margin: "0 0 20px" }}>Hub configuration · Admin only</p>
 
               {/* ── Backend Sync ── */}
               <Card style={{ marginBottom: 16 }}>
-                <SectionTitle>Backend Sync</SectionTitle>
+                <SectionTitle>{t("backendSync")}</SectionTitle>
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 14, lineHeight: 1.6 }}>
                   Every batch action syncs automatically to your configured backend.
                   Paste either a Google Apps Script Web App URL (ending in <strong>/exec</strong>) or a
@@ -6196,7 +6219,7 @@ export default function RezyMRVLive() {
                 </div>
 
 	                <Inp
-	                  label="Backend URL (Apps Script or Supabase)"
+	                  label={t("backendUrlLabel")}
 	                  value={sheetsUrl}
 	                  onChange={v => setSheetsUrl(v)}
 	                  placeholder="https://script.google.com/macros/s/…/exec or https://…supabase.co/functions/v1/rezy-mrv-api"
@@ -6233,7 +6256,7 @@ export default function RezyMRVLive() {
 		                </div>
 
 		                <div style={{ marginTop: 14, padding: "12px 14px", border: `1px solid ${isValidSheetsUrl(sheetsUrl) ? C.forestMid : C.creamDark}`, borderRadius: 10, background: isValidSheetsUrl(sheetsUrl) ? "#e8f5e9" : C.cardBg }}>
-		                  <div style={{ fontSize: 11, fontWeight: 800, color: C.forest, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 5 }}>Generate app data from backend</div>
+		                  <div style={{ fontSize: 11, fontWeight: 800, color: C.forest, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 5 }}>{t("generateFromBackend")}</div>
 		                  <div style={{ fontSize: 12, color: C.muted, marginBottom: 10, lineHeight: 1.45 }}>
 		                    Pulls the current batches from your configured backend into this browser so Dashboard, Admin Review, Records, and Analytics do not stay blank.
 		                  </div>
@@ -6252,7 +6275,7 @@ export default function RezyMRVLive() {
 
 		                {isValidSheetsUrl(sheetsUrl) && (
 		                  <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>Sync existing batches to backend</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>{t("syncExistingToBackend")}</div>
                     <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>Push all {batches.length} stored batches to the backend now. Useful after first setup.</div>
 	                    <div style={{ display: "flex", gap: 10 }}>
 	                    <Btn small onClick={async () => {
@@ -6293,7 +6316,7 @@ export default function RezyMRVLive() {
 
               {/* ── Settings Access Device ── */}
               <Card style={{ marginBottom: 16 }}>
-                <SectionTitle>Settings Access Device</SectionTitle>
+                <SectionTitle>{t("settingsAccessDevice")}</SectionTitle>
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 14, lineHeight: 1.6 }}>
                   Settings and Analytics are hidden by default on every device. To unlock this card on a new device,
                   tap the Rezycology logo (top-left) 5 times quickly and enter the device unlock PIN.
@@ -6317,7 +6340,7 @@ export default function RezyMRVLive() {
 
               {/* ── Admin Review Device ── */}
               <Card style={{ marginBottom: 16 }}>
-                <SectionTitle>Admin Review Device</SectionTitle>
+                <SectionTitle>{t("adminReviewDevice")}</SectionTitle>
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 14, lineHeight: 1.6 }}>
                   The "Admin Review" tab is hidden by default on every device. Other devices signed in as Admin
                   can still log Collection/Transport/Processing inputs, but will not see or access Admin Review —
@@ -6342,7 +6365,7 @@ export default function RezyMRVLive() {
 
               {/* ── Role PINs ── */}
               <Card style={{ marginBottom: 16 }}>
-                <SectionTitle>Role Access PINs</SectionTitle>
+                <SectionTitle>{t("rolePins")}</SectionTitle>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   {Object.entries(ROLES).filter(([key]) => key !== "operator").map(([key, r]) => (
                     <div key={key} style={{ background: C.creamMid, borderRadius: 10, padding: "12px 16px" }}>
@@ -6357,7 +6380,7 @@ export default function RezyMRVLive() {
 
               {/* ── Data ── */}
               <Card>
-                <SectionTitle>Data Management</SectionTitle>
+                <SectionTitle>{t("dataManagement")}</SectionTitle>
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>
                   {batches.length} batches stored · {(JSON.stringify(batches).length / 1024).toFixed(1)} KB · Persistent across sessions.
                 </div>
@@ -6368,7 +6391,7 @@ export default function RezyMRVLive() {
                       if (sheetsUrl) await clearSheetsData(sheetsUrl);
                       showToast("All local and Sheet data cleared.", "warn");
                     }
-                  }} variant="danger">Clear All Data</Btn>
+                  }} variant="danger">{t("clearData")}</Btn>
                 </div>
               </Card>
             </div>
