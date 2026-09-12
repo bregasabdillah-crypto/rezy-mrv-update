@@ -34,7 +34,7 @@ const TRANSLATIONS = {
     // Login
     selectRole: "Select your role", enterPin: "Enter 4-digit PIN",
     signInAs: "Sign in as", wrongPin: "Wrong PIN. Try again.",
-    demoPins: "Demo PINs — Admin: 1234 · Collection: 1111 · Transport: 2222 · Processing: 3333",
+    demoPins: "Demo PINs — Admin: 1234 · Collection: 1111 · Transport: 2222 · Processing: 3333 · Off-taker Transport: 4444 · Downstream: 5555",
     mrvPlatform: "MRV Platform",
     // Roles
     roleAdmin: "Admin", roleOperator: "Hub Operator", roleCollection: "Collection Operator", roleTransport: "Transport Operator", roleProcessing: "Processing Operator", roleVerifier: "VVB Verifier", roleBuyer: "EPR Buyer",
@@ -290,6 +290,10 @@ const TRANSLATIONS = {
     disableHere: "Disable Here",
     enableHere: "Enable Here",
     rejectedExceedsAccepted: "Rejected weight cannot exceed accepted weight — please check the figures.",
+    roleOfftakerTransport: "Operator Off-taker Transport",
+    roleOfftakerTransportDesc: "Transport to off-takers input only",
+    roleDownstreamProcessing: "Operator Downstream Processing",
+    roleDownstreamProcessingDesc: "Downstream processing input only",
     // Misc
     remove: "Remove", go: "Go", out: "Out",
     hubDepok: "Hub Depok-01",
@@ -301,7 +305,7 @@ const TRANSLATIONS = {
     // Login
     selectRole: "Pilih peran Anda", enterPin: "Masukkan PIN 4 digit",
     signInAs: "Masuk sebagai", wrongPin: "PIN salah. Coba lagi.",
-    demoPins: "PIN Demo — Admin: 1234 · Collection: 1111 · Transport: 2222 · Processing: 3333",
+    demoPins: "PIN Demo — Admin: 1234 · Collection: 1111 · Transport: 2222 · Processing: 3333 · Transport Off-taker: 4444 · Hilir: 5555",
     mrvPlatform: "Platform MRV",
     // Roles
     roleAdmin: "Admin", roleOperator: "Operator Hub", roleCollection: "Operator Collection", roleTransport: "Operator Transport", roleProcessing: "Operator Processing", roleVerifier: "Verifikator VVB", roleBuyer: "Pembeli EPR",
@@ -557,6 +561,10 @@ const TRANSLATIONS = {
     disableHere: "Nonaktifkan di Sini",
     enableHere: "Aktifkan di Sini",
     rejectedExceedsAccepted: "Berat ditolak tidak boleh melebihi berat diterima — mohon periksa kembali angkanya.",
+    roleOfftakerTransport: "Operator Transport Off-taker",
+    roleOfftakerTransportDesc: "Input transport ke off-taker saja",
+    roleDownstreamProcessing: "Operator Pemrosesan Hilir",
+    roleDownstreamProcessingDesc: "Input pemrosesan hilir saja",
     // Misc
     remove: "Hapus", go: "Cari", out: "Keluar",
     hubDepok: "Hub Depok-01",
@@ -2920,9 +2928,11 @@ function LoginScreen({ onLogin, lang, setLang }) {
     collection: { label: t("roleCollection"), desc: t("roleCollectionDesc") },
     transport: { label: t("roleTransport"), desc: t("roleTransportDesc") },
     processing: { label: t("roleProcessing"), desc: t("roleProcessingDesc") },
+    offtaker_transport: { label: t("roleOfftakerTransport"), desc: t("roleOfftakerTransportDesc") },
+    downstream_processing: { label: t("roleDownstreamProcessing"), desc: t("roleDownstreamProcessingDesc") },
 
   };
-  const loginRoleKeys = ["admin", "collection", "transport", "processing"];
+  const loginRoleKeys = ["admin", "collection", "transport", "processing", "offtaker_transport", "downstream_processing"];
 
   // Prompt for GPS permission as soon as a role is selected (PIN entry shown),
   // so the browser's location dialog appears early instead of mid-task later.
@@ -4350,10 +4360,8 @@ export default function RezyMRVLive() {
       { ok: totalMaterialKg > 0, label: "total gross weight" },
 	      { ok: Boolean(col.collectorId), label: "Waste Collector" },
 	      { ok: Boolean(col.weighingEquipId), label: "Weighing Equipment" },
-	      { ok: Boolean(col.calibCertUrl), label: "Calibration Certificate" },
       { ok: Boolean((col.notes || "").trim()), label: "Notes / Field Observations" },
       { ok: Boolean(col.photoDataUrl), label: "Collection Photo (chain-of-custody evidence)" },
-      { ok: Boolean(col.handwrittenWeighingIdDataUrl), label: "Handwritten Weighing Identification" },
       { ok: Boolean(sigCol), label: "Collector Signature" },
     ])) return;
     setGeoLoading(true);
@@ -5477,9 +5485,6 @@ export default function RezyMRVLive() {
                 {entryMode === "collection" && stage === 1 && (
                   <div>
                     <SectionTitle>{t("stage1Title")}</SectionTitle>
-                    <div style={{ background: "#fffbf5", border: `1px solid #f0e8d8`, borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: C.muted }}>
-                      Record feedstock type, gross weight, weighing equipment ID, and collector identity for every batch.
-                    </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
                       <Inp label={t("batchId")} value={directMeta.batchId} onChange={() => {}} disabled />
                       <div>
@@ -5508,21 +5513,6 @@ export default function RezyMRVLive() {
                       </div>
 	                      <SearchSel label={t("collector")} value={col.collectorId} onChange={v => setCol(p=>({...p,collectorId:v}))} options={COLLECTORS} required />
 	                      <Sel label={t("weighingEquip")} value={col.weighingEquipId} onChange={v => setCol(p=>({...p,weighingEquipId:v}))} options={SCALES} required />
-	                      <div>
-                        <Lbl>{t("calibCert")} <span style={{ color: C.orange, fontWeight: 700 }}>*</span></Lbl>
-                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>A valid calibration certificate is required for the weighing equipment. Upload photo or scan.</div>
-                        <input type="file" accept="image/*,application/pdf" capture="environment" onChange={e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async ev => { const result = file.type === "application/pdf" ? ev.target.result : (await compressPhoto(ev.target.result, 1600, 0.85, 150 * 1024) || ev.target.result); setCol(p=>({...p,calibCertUrl:result})); }; reader.readAsDataURL(file); }} style={{ fontSize: 12, color: C.muted }} />
-                        {col.calibCertUrl && (
-                          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, background: "#e8f5e9", borderRadius: 6, padding: "6px 10px" }}>
-                            <span style={{ fontSize: 18 }}>📋</span>
-                            <span style={{ fontSize: 12, color: C.forest, fontWeight: 600 }}>{t("certAttached")}</span>
-                            <button onClick={() => setCol(p=>({...p,calibCertUrl:null}))} style={{ marginLeft: "auto", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 11 }}>{t("remove")}</button>
-                          </div>
-                        )}
-                        {!col.calibCertUrl && (
-                          <div style={{ marginTop: 4, fontSize: 11, color: "#c0392b" }}>{t("calibCertRequired")}</div>
-                        )}
-                      </div>
                       <Inp label={t("collectionTimestamp")} value={jakartaNowLabel(clockNow)} onChange={() => {}} disabled />
                       {SHOW_MAP_PICKER && <MapPicker value={colGeo} onChange={setColGeo} lang={lang} />}
                     </div>
@@ -5538,40 +5528,6 @@ export default function RezyMRVLive() {
                         <div style={{ position: "relative", marginTop: 8 }}>
                           <img src={col.photoDataUrl} alt="preview" style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 8, background: C.creamMid }} />
                           <button onClick={() => setCol(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ marginBottom: 18 }}>
-                      <Lbl>{t("handwrittenWeighingId")} <span style={{ color: C.orange, fontWeight: 700 }}>*</span></Lbl>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t("handwrittenPhotoNote")}</div>
-                      <input type="file" accept="image/*" capture="environment" onChange={handleHandwrittenWeighingIdPhoto} style={{ fontSize: 12, color: C.muted }} />
-                      <textarea
-                        value={col.handwrittenInput}
-                        onChange={e => setCol(p => ({ ...p, handwrittenInput: e.target.value, handwrittenWeighing: null }))}
-                        rows={5}
-                        placeholder={"Handwritten Weighing Identification\n31\n48\n31\n32\n34\n36\n47\n48\n46\n21\n374\n100\n274\n8\n266 x 6900"}
-                        style={{ width: "100%", marginTop: 10, padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${C.creamDark}`, background: C.white, fontSize: 13, color: C.charcoal, outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "'DM Mono', monospace" }}
-                      />
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
-                        <Btn small onClick={generateHandwrittenWeighing} variant="secondary" disabled={ocrLoading}>{ocrLoading ? t("readingPhoto") : t("autoGenerate")}</Btn>
-                        {col.handwrittenWeighing && (
-                          <span style={{ fontSize: 12, color: C.forest, fontWeight: 800, fontFamily: "'DM Mono', monospace" }}>{col.handwrittenWeighing.weighingId}</span>
-                        )}
-                      </div>
-                      {col.handwrittenWeighing && (
-                        <div style={{ background: "#e8f5e9", borderRadius: 8, padding: "9px 12px", marginTop: 10, fontSize: 12, color: C.forest }}>
-                          <div style={{ fontWeight: 800, marginBottom: 5 }}>Generated weighing data</div>
-                          <div>Numbers: {col.handwrittenWeighing.weights.join(", ") || "-"}</div>
-                          <div>Gross: {Number(col.handwrittenWeighing.grossWeight).toLocaleString()} kg · Deduction: {Number(col.handwrittenWeighing.totalDeduction).toLocaleString()} kg · Net: <strong>{Number(col.handwrittenWeighing.netWeight).toLocaleString()} kg</strong></div>
-                          {col.handwrittenWeighing.rate > 0 && (
-                            <div>Rate: {Number(col.handwrittenWeighing.rate).toLocaleString("id-ID")} · Total: Rp {Number(col.handwrittenWeighing.totalAmount).toLocaleString("id-ID")}</div>
-                          )}
-                        </div>
-                      )}
-                      {col.handwrittenWeighingIdDataUrl && (
-                        <div style={{ position: "relative", marginTop: 8 }}>
-                          <img src={col.handwrittenWeighingIdDataUrl} alt="handwritten weighing identification preview" style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 8, background: C.creamMid }} />
-                          <button onClick={() => setCol(p=>({...p,handwrittenWeighingIdDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
                         </div>
                       )}
                     </div>
