@@ -204,6 +204,26 @@ const TRANSLATIONS = {
     batchAvailableForPickup: "Batch Available for Pickup (collected D-day / D-1)",
     batchAvailableToProcess: "Batch Available to Process (delivered by transport manifest)",
     batchesAvailableOfftaker: "Batches Available for Off-taker Pickup (processed at hub)",
+    // Admin Review / Verify tab
+    adminReviewTitle: "Admin Review",
+    filterInput: "Filter Input",
+    findReviewItems: "Find Review Items",
+    findRecords: "Find Records",
+    fromDate: "From Date",
+    toDate: "To Date",
+    minKg: "Min kg",
+    maxKg: "Max kg",
+    searchReviewPlaceholder: "Search batch, feedstock, inputter, manifest...",
+    searchRecordsPlaceholder: "Search batch, material, operator, manifest...",
+    acceptInput: "Accept Input",
+    acceptLabel: "Accept",
+    detailsLabel: "Details",
+    prevLabel: "Prev",
+    nextLabel: "Next",
+    refreshData: "Refresh Data",
+    noPendingReview: "No operator inputs pending review.",
+    showingLabel: "Showing",
+    ofLabel: "of",
     // Misc
     remove: "Remove", go: "Go", out: "Out",
     hubDepok: "Hub Depok-01",
@@ -385,6 +405,26 @@ const TRANSLATIONS = {
     batchAvailableForPickup: "Batch Tersedia untuk Diambil (dikumpulkan H / H-1)",
     batchAvailableToProcess: "Batch Tersedia untuk Diproses (dikirim sesuai manifes angkutan)",
     batchesAvailableOfftaker: "Batch Tersedia untuk Pengambilan Off-taker (diproses di hub)",
+    // Admin Review / Verify tab
+    adminReviewTitle: "Tinjauan Admin",
+    filterInput: "Saring Input",
+    findReviewItems: "Cari Item Tinjauan",
+    findRecords: "Cari Catatan",
+    fromDate: "Dari Tanggal",
+    toDate: "Sampai Tanggal",
+    minKg: "Min kg",
+    maxKg: "Maks kg",
+    searchReviewPlaceholder: "Cari batch, bahan baku, penginput, manifes...",
+    searchRecordsPlaceholder: "Cari batch, material, operator, manifes...",
+    acceptInput: "Terima Input",
+    acceptLabel: "Terima",
+    detailsLabel: "Detail",
+    prevLabel: "Sebelumnya",
+    nextLabel: "Berikutnya",
+    refreshData: "Muat Ulang Data",
+    noPendingReview: "Tidak ada input operator yang menunggu tinjauan.",
+    showingLabel: "Menampilkan",
+    ofLabel: "dari",
     // Misc
     remove: "Hapus", go: "Cari", out: "Keluar",
     hubDepok: "Hub Depok-01",
@@ -3154,7 +3194,8 @@ function ChainOfCustodyPanel({ batches, lang }) {
 }
 
 // ─── Analytics Panel ──────────────────────────────────────────────────────────
-function AnalyticsPanel({ batches, isMobile = false }) {
+function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
+  const t = useT(lang);
   const safeArr = Array.isArray(batches) ? batches : [];
   const [analyticsFrom, setAnalyticsFrom] = useState("");
   const [analyticsTo, setAnalyticsTo] = useState("");
@@ -3256,8 +3297,8 @@ function AnalyticsPanel({ batches, isMobile = false }) {
       <Card style={{ marginBottom: 16 }}>
         <SectionTitle>Analytics Filters</SectionTitle>
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr auto", gap: 12, alignItems: "end" }}>
-          <Inp label="From Date" type="date" value={analyticsFrom} onChange={setAnalyticsFrom} />
-          <Inp label="To Date" type="date" value={analyticsTo} onChange={setAnalyticsTo} />
+          <Inp label={t("fromDate")} type="date" value={analyticsFrom} onChange={setAnalyticsFrom} />
+          <Inp label={t("toDate")} type="date" value={analyticsTo} onChange={setAnalyticsTo} />
           <div style={isMobile ? { gridColumn: "1 / -1" } : undefined}>
             <Btn small onClick={() => { setAnalyticsFrom(""); setAnalyticsTo(""); }} variant="ghost">Reset</Btn>
           </div>
@@ -5048,8 +5089,8 @@ export default function RezyMRVLive() {
               )}
               {canAccess("verify") && operatorInputStatuses.includes(detailView.status) && (detailView.reviewStatus || "pending") === "pending" && !(detailView.activities || []).some(a => a.stage === "Admin Rejected" || a.stage === "Admin Accepted") && (
                 <>
-                  <Btn small onClick={() => { approveBatchInput(detailView.id); setDetailView(null); }} variant="blue">Accept Input</Btn>
-                  <Btn small onClick={() => { setRejectTarget(detailView.id); setDetailView(null); }} variant="danger">Reject</Btn>
+                  <Btn small onClick={() => { approveBatchInput(detailView.id); setDetailView(null); }} variant="blue">{t("acceptInput")}</Btn>
+                  <Btn small onClick={() => { setRejectTarget(detailView.id); setDetailView(null); }} variant="danger">{t("reject")}</Btn>
                 </>
               )}
               {canAccess("verify") && detailView.reviewStatus === "rejected" && (
@@ -5299,7 +5340,7 @@ export default function RezyMRVLive() {
                                 next[idx] = { ...next[idx], weightKg: v };
                                 return { ...p, materials: next };
                               })} placeholder="kg" required />
-                              <Btn small onClick={() => setCol(p => ({ ...p, materials: (p.materials || []).filter((_, i) => i !== idx) }))} disabled={(col.materials || []).length <= 1} variant="ghost">Remove</Btn>
+                              <Btn small onClick={() => setCol(p => ({ ...p, materials: (p.materials || []).filter((_, i) => i !== idx) }))} disabled={(col.materials || []).length <= 1} variant="ghost">{t("remove")}</Btn>
                             </div>
                           ))}
                         </div>
@@ -5318,7 +5359,7 @@ export default function RezyMRVLive() {
                           <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, background: "#e8f5e9", borderRadius: 6, padding: "6px 10px" }}>
                             <span style={{ fontSize: 18 }}>📋</span>
                             <span style={{ fontSize: 12, color: C.forest, fontWeight: 600 }}>{t("certAttached")}</span>
-                            <button onClick={() => setCol(p=>({...p,calibCertUrl:null}))} style={{ marginLeft: "auto", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 11 }}>Remove</button>
+                            <button onClick={() => setCol(p=>({...p,calibCertUrl:null}))} style={{ marginLeft: "auto", background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 11 }}>{t("remove")}</button>
                           </div>
                         )}
                         {!col.calibCertUrl && (
@@ -5339,7 +5380,7 @@ export default function RezyMRVLive() {
                       {col.photoDataUrl && (
                         <div style={{ position: "relative", marginTop: 8 }}>
                           <img src={col.photoDataUrl} alt="preview" style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 8, background: C.creamMid }} />
-                          <button onClick={() => setCol(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Remove</button>
+                          <button onClick={() => setCol(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
                         </div>
                       )}
                     </div>
@@ -5373,7 +5414,7 @@ export default function RezyMRVLive() {
                       {col.handwrittenWeighingIdDataUrl && (
                         <div style={{ position: "relative", marginTop: 8 }}>
                           <img src={col.handwrittenWeighingIdDataUrl} alt="handwritten weighing identification preview" style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 8, background: C.creamMid }} />
-                          <button onClick={() => setCol(p=>({...p,handwrittenWeighingIdDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Remove</button>
+                          <button onClick={() => setCol(p=>({...p,handwrittenWeighingIdDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
                         </div>
                       )}
                     </div>
@@ -5430,7 +5471,7 @@ export default function RezyMRVLive() {
                       {trn.photoDataUrl && (
                         <div style={{ position: "relative", marginTop: 8 }}>
                           <img src={trn.photoDataUrl} alt="transport" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 8 }} />
-                          <button onClick={() => setTrn(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Remove</button>
+                          <button onClick={() => setTrn(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
                         </div>
                       )}
                     </div>
@@ -5522,7 +5563,7 @@ export default function RezyMRVLive() {
                       {prc.photoDataUrl && (
                         <div style={{ position: "relative", marginTop: 8 }}>
                           <img src={prc.photoDataUrl} alt="processing" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 8 }} />
-                          <button onClick={() => setPrc(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Remove</button>
+                          <button onClick={() => setPrc(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
                         </div>
                       )}
                     </div>
@@ -5532,7 +5573,7 @@ export default function RezyMRVLive() {
                       {prc.contaminationPhotoDataUrl && (
                         <div style={{ position: "relative", marginTop: 8 }}>
                           <img src={prc.contaminationPhotoDataUrl} alt="contamination" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 8 }} />
-                          <button onClick={() => setPrc(p=>({...p,contaminationPhotoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Remove</button>
+                          <button onClick={() => setPrc(p=>({...p,contaminationPhotoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
                         </div>
                       )}
                     </div>
@@ -5570,7 +5611,7 @@ export default function RezyMRVLive() {
                                   return { ...p, materials: next };
                                 })} placeholder="kg" required />
                               </div>
-                              <Btn small onClick={() => setOft(p => ({ ...p, materials: (p.materials || []).filter((_, i) => i !== idx) }))} disabled={(oft.materials || []).length <= 1} variant="ghost">Remove</Btn>
+                              <Btn small onClick={() => setOft(p => ({ ...p, materials: (p.materials || []).filter((_, i) => i !== idx) }))} disabled={(oft.materials || []).length <= 1} variant="ghost">{t("remove")}</Btn>
                             </div>
                           </div>
                         ))}
@@ -5617,9 +5658,9 @@ export default function RezyMRVLive() {
                           </div>
                           {offtakerPageCount > 1 && (
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                              <Btn small onClick={() => setOfftakerPage(p => Math.max(0, p - 1))} disabled={offtakerPage === 0} variant="ghost">Prev</Btn>
+                              <Btn small onClick={() => setOfftakerPage(p => Math.max(0, p - 1))} disabled={offtakerPage === 0} variant="ghost">{t("prevLabel")}</Btn>
                               <span style={{ fontSize: 12, color: C.muted }}>Page {offtakerPage + 1} of {offtakerPageCount}</span>
-                              <Btn small onClick={() => setOfftakerPage(p => Math.min(offtakerPageCount - 1, p + 1))} disabled={offtakerPage >= offtakerPageCount - 1} variant="ghost">Next</Btn>
+                              <Btn small onClick={() => setOfftakerPage(p => Math.min(offtakerPageCount - 1, p + 1))} disabled={offtakerPage >= offtakerPageCount - 1} variant="ghost">{t("nextLabel")}</Btn>
                             </div>
                           )}
                         </>
@@ -5647,7 +5688,7 @@ export default function RezyMRVLive() {
                               <div key={id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                                 <span style={{ fontFamily: "'DM Mono', monospace", color: C.forest, fontWeight: 700 }}>{b.batchId}</span>
                                 <span style={{ flex: 1, textAlign: isMobile ? "left" : "right" }}>{lineLabel} · {lineWeight.toLocaleString()} kg</span>
-                                <Btn small onClick={() => setOft(p => ({ ...p, selectedBatchIds: (p.selectedBatchIds || []).filter(x => x !== id) }))} variant="ghost">Remove</Btn>
+                                <Btn small onClick={() => setOft(p => ({ ...p, selectedBatchIds: (p.selectedBatchIds || []).filter(x => x !== id) }))} variant="ghost">{t("remove")}</Btn>
                               </div>
                             );
                           })}
@@ -5681,7 +5722,7 @@ export default function RezyMRVLive() {
                       {oft.photoDataUrl && (
                         <div style={{ position: "relative", marginTop: 8 }}>
                           <img src={oft.photoDataUrl} alt="delivery order" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 8 }} />
-                          <button onClick={() => setOft(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Remove</button>
+                          <button onClick={() => setOft(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
                         </div>
                       )}
                     </div>
@@ -5761,7 +5802,7 @@ export default function RezyMRVLive() {
                       {dsp.photoDataUrl && (
                         <div style={{ position: "relative", marginTop: 8 }}>
                           <img src={dsp.photoDataUrl} alt="downstream processing" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 8 }} />
-                          <button onClick={() => setDsp(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Remove</button>
+                          <button onClick={() => setDsp(p=>({...p,photoDataUrl:null}))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", color: "#fff", border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>{t("remove")}</button>
                         </div>
                       )}
                     </div>
@@ -5783,11 +5824,11 @@ export default function RezyMRVLive() {
 	            <div>
 	              <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "flex-end", gap: 12, marginBottom: 20 }}>
 	                <div>
-	                  <h1 style={{ fontSize: isMobile ? 28 : 24, lineHeight: 1.08, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>Admin Review</h1>
+	                  <h1 style={{ fontSize: isMobile ? 28 : 24, lineHeight: 1.08, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>{t("adminReviewTitle")}</h1>
 	                  <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Accept or reject operator inputs · {roleObj.name}</p>
 	                </div>
 		                <div style={{ display: "flex", alignItems: "center", justifyContent: isMobile ? "space-between" : "flex-start", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
-		                  <Btn small onClick={() => refreshBatchesFromSheet(true)} variant="secondary" disabled={!sheetsUrl}>Refresh Sheet</Btn>
+		                  <Btn small onClick={() => refreshBatchesFromSheet(true)} variant="secondary" disabled={!sheetsUrl}>{t("refreshData")}</Btn>
 		                  <div style={{ display: "flex", background: C.creamDark, borderRadius: 8, padding: 3 }}>
 		                    {[
 		                      { key: "list", label: "List View" },
@@ -5811,8 +5852,8 @@ export default function RezyMRVLive() {
 
 	              <Card style={{ marginBottom: 12 }}>
 	                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 0.8fr", gap: 12, alignItems: "end" }}>
-	                  <Inp label="Find Review Items" value={reviewQuery} onChange={setReviewQuery} placeholder="Search batch, material, operator, manifest..." />
-	                  <Sel label="Filter Input" value={reviewStageFilter} onChange={setReviewStageFilter} options={["all", "collection", "transport", "processing"]} />
+	                  <Inp label={t("findReviewItems")} value={reviewQuery} onChange={setReviewQuery} placeholder={t("searchRecordsPlaceholder")} />
+	                  <Sel label={t("filterInput")} value={reviewStageFilter} onChange={setReviewStageFilter} options={["all", "collection", "transport", "processing"]} />
 	                </div>
 	              </Card>
 
@@ -5820,7 +5861,7 @@ export default function RezyMRVLive() {
 	                <Card>
 	                  <div style={{ textAlign: "center", padding: "24px 0", color: C.muted }}>
 	                    <div style={{ fontSize: 28, marginBottom: 8 }}>✓</div>
-	                    <div style={{ fontSize: 14, fontWeight: 600 }}>No operator inputs pending review.</div>
+	                    <div style={{ fontSize: 14, fontWeight: 600 }}>{t("noPendingReview")}</div>
 	                  </div>
 	                </Card>
 	              ) : effectiveReviewViewMode === "list" ? (
@@ -5857,9 +5898,9 @@ export default function RezyMRVLive() {
 	                            <td style={{ padding: "10px", fontSize: 10, color: C.muted, lineHeight: 1.35 }}>{fmtDateTime(latestActivity.ts || b.createdAt)}</td>
 		                            <td style={{ padding: "10px" }}>
 		                              <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", alignItems: "center" }}>
-	                                <Btn small onClick={() => approveBatchInput(b.id)} variant="blue">Accept</Btn>
-	                                <Btn small onClick={() => setRejectTarget(b.id)} variant="danger">Reject</Btn>
-	                                <Btn small onClick={() => setDetailView(detailForMaterial(b))} variant="ghost">Details</Btn>
+	                                <Btn small onClick={() => approveBatchInput(b.id)} variant="blue">{t("acceptLabel")}</Btn>
+	                                <Btn small onClick={() => setRejectTarget(b.id)} variant="danger">{t("reject")}</Btn>
+	                                <Btn small onClick={() => setDetailView(detailForMaterial(b))} variant="ghost">{t("detailsLabel")}</Btn>
 	                              </div>
 	                            </td>
 	                          </tr>
@@ -5870,12 +5911,12 @@ export default function RezyMRVLive() {
 	                </div>
 	                  <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 8, padding: "10px 12px", borderTop: `1px solid ${C.creamDark}`, background: C.cardBg }}>
 	                    <div style={{ fontSize: 11, color: C.muted }}>
-	                      Showing {filteredReviewBatches.length === 0 ? 0 : ((safeReviewPage - 1) * reviewPageSize) + 1}-{Math.min(safeReviewPage * reviewPageSize, filteredReviewBatches.length)} of {filteredReviewBatches.length}
+	                      {t("showingLabel")} {filteredReviewBatches.length === 0 ? 0 : ((safeReviewPage - 1) * reviewPageSize) + 1}-{Math.min(safeReviewPage * reviewPageSize, filteredReviewBatches.length)} {t("ofLabel")} {filteredReviewBatches.length}
 	                    </div>
 	                    <div style={{ display: "flex", alignItems: "center", justifyContent: isMobile ? "space-between" : "flex-start", gap: 8 }}>
-	                      <Btn small onClick={() => setReviewPage(p => Math.max(1, p - 1))} disabled={safeReviewPage <= 1} variant="ghost">Prev</Btn>
+	                      <Btn small onClick={() => setReviewPage(p => Math.max(1, p - 1))} disabled={safeReviewPage <= 1} variant="ghost">{t("prevLabel")}</Btn>
 	                      <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>Page {safeReviewPage} / {reviewPageCount}</span>
-	                      <Btn small onClick={() => setReviewPage(p => Math.min(reviewPageCount, p + 1))} disabled={safeReviewPage >= reviewPageCount} variant="ghost">Next</Btn>
+	                      <Btn small onClick={() => setReviewPage(p => Math.min(reviewPageCount, p + 1))} disabled={safeReviewPage >= reviewPageCount} variant="ghost">{t("nextLabel")}</Btn>
 	                    </div>
 	                  </div>
 	                </div>
@@ -5924,7 +5965,7 @@ export default function RezyMRVLive() {
                     {/* Compact activity trail */}
                     {b.activities && b.activities.length > 0 && (
                       <div style={{ background: C.pageBg, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 10 }}>Chain of Custody Trail</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 10 }}>{t("custodyTrail")}</div>
                         {b.activities.map((a, i) => {
                           const geo = a.geo;
                           return (
@@ -5958,21 +5999,21 @@ export default function RezyMRVLive() {
 
 	                    <ActivityLog activities={[]} lang={lang} />{/* full log in detail view */}
 	                    <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-	                      <Btn small onClick={() => approveBatchInput(b.id)} variant="blue">Accept Input</Btn>
-	                      <Btn small onClick={() => setRejectTarget(b.id)} variant="danger">Reject</Btn>
-		                      <Btn small onClick={() => setDetailView(detailForMaterial(b, rowMaterial.material, rowMaterial.index))} variant="ghost">View Details</Btn>
+	                      <Btn small onClick={() => approveBatchInput(b.id)} variant="blue">{t("acceptInput")}</Btn>
+	                      <Btn small onClick={() => setRejectTarget(b.id)} variant="danger">{t("reject")}</Btn>
+		                      <Btn small onClick={() => setDetailView(detailForMaterial(b, rowMaterial.material, rowMaterial.index))} variant="ghost">{t("viewDetails")}</Btn>
                     </div>
                   </Card>
                     );
                 })}
                 <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 10, padding: "10px 12px", border: `1px solid ${C.creamDark}`, borderRadius: 10, background: C.cardBg }}>
                   <div style={{ fontSize: 11, color: C.muted }}>
-                    Showing {((safeReviewPage - 1) * reviewPageSize) + 1}-{Math.min(safeReviewPage * reviewPageSize, filteredReviewBatches.length)} of {filteredReviewBatches.length}
+                    {t("showingLabel")} {((safeReviewPage - 1) * reviewPageSize) + 1}-{Math.min(safeReviewPage * reviewPageSize, filteredReviewBatches.length)} {t("ofLabel")} {filteredReviewBatches.length}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: isMobile ? "space-between" : "flex-start", gap: 8 }}>
-                    <Btn small onClick={() => setReviewPage(p => Math.max(1, p - 1))} disabled={safeReviewPage <= 1} variant="ghost">Prev</Btn>
+                    <Btn small onClick={() => setReviewPage(p => Math.max(1, p - 1))} disabled={safeReviewPage <= 1} variant="ghost">{t("prevLabel")}</Btn>
                     <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>Page {safeReviewPage} / {reviewPageCount}</span>
-                    <Btn small onClick={() => setReviewPage(p => Math.min(reviewPageCount, p + 1))} disabled={safeReviewPage >= reviewPageCount} variant="ghost">Next</Btn>
+                    <Btn small onClick={() => setReviewPage(p => Math.min(reviewPageCount, p + 1))} disabled={safeReviewPage >= reviewPageCount} variant="ghost">{t("nextLabel")}</Btn>
                   </div>
                 </div>
                 </>
@@ -5993,11 +6034,11 @@ export default function RezyMRVLive() {
 
               <Card style={{ marginBottom: 12 }}>
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr repeat(4, 0.75fr)", gap: 10, alignItems: "end" }}>
-                  <Inp label="Find Records" value={recordQuery} onChange={setRecordQuery} placeholder="Search batch, feedstock, inputter, manifest..." />
-                  <Inp label="From Date" type="date" value={recordDateFrom} onChange={setRecordDateFrom} />
-                  <Inp label="To Date" type="date" value={recordDateTo} onChange={setRecordDateTo} />
-                  <Inp label="Min kg" type="number" value={recordWeightMin} onChange={setRecordWeightMin} />
-                  <Inp label="Max kg" type="number" value={recordWeightMax} onChange={setRecordWeightMax} />
+                  <Inp label={t("findRecords")} value={recordQuery} onChange={setRecordQuery} placeholder={t("searchReviewPlaceholder")} />
+                  <Inp label={t("fromDate")} type="date" value={recordDateFrom} onChange={setRecordDateFrom} />
+                  <Inp label={t("toDate")} type="date" value={recordDateTo} onChange={setRecordDateTo} />
+                  <Inp label={t("minKg")} type="number" value={recordWeightMin} onChange={setRecordWeightMin} />
+                  <Inp label={t("maxKg")} type="number" value={recordWeightMax} onChange={setRecordWeightMax} />
                 </div>
               </Card>
 
@@ -6095,12 +6136,12 @@ export default function RezyMRVLive() {
                   </table>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderTop: `1px solid ${C.creamDark}`, background: C.cardBg }}>
                     <div style={{ fontSize: 11, color: C.muted }}>
-                      Showing {filteredRecordRows.length === 0 ? 0 : ((safeRecordPage - 1) * recordPageSize) + 1}-{Math.min(safeRecordPage * recordPageSize, filteredRecordRows.length)} of {filteredRecordRows.length}
+                      {t("showingLabel")} {filteredRecordRows.length === 0 ? 0 : ((safeRecordPage - 1) * recordPageSize) + 1}-{Math.min(safeRecordPage * recordPageSize, filteredRecordRows.length)} {t("ofLabel")} {filteredRecordRows.length}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <Btn small onClick={() => setRecordPage(p => Math.max(1, p - 1))} disabled={safeRecordPage <= 1} variant="ghost">Prev</Btn>
+                      <Btn small onClick={() => setRecordPage(p => Math.max(1, p - 1))} disabled={safeRecordPage <= 1} variant="ghost">{t("prevLabel")}</Btn>
                       <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>Page {safeRecordPage} / {recordPageCount}</span>
-                      <Btn small onClick={() => setRecordPage(p => Math.min(recordPageCount, p + 1))} disabled={safeRecordPage >= recordPageCount} variant="ghost">Next</Btn>
+                      <Btn small onClick={() => setRecordPage(p => Math.min(recordPageCount, p + 1))} disabled={safeRecordPage >= recordPageCount} variant="ghost">{t("nextLabel")}</Btn>
                     </div>
                   </div>
                 </div>
@@ -6116,7 +6157,7 @@ export default function RezyMRVLive() {
 
           {/* ════════════════ ANALYTICS ════════════════ */}
           {tab === "analytics" && canAccess("settings") && (
-            <AnalyticsPanel batches={visibleBatches} sheetsUrl={sheetsUrl} isMobile={isMobile} />
+            <AnalyticsPanel batches={visibleBatches} sheetsUrl={sheetsUrl} isMobile={isMobile} lang={lang} />
           )}
 
           {/* ════════════════ SETTINGS ════════════════ */}
