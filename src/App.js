@@ -718,6 +718,9 @@ const EOW_PROCESSES = [
   "Co-processing — Used as alternative fuel or raw material in cement kilns (EoW at point of kiln acceptance)",
   "Energy Recovery — Incineration with energy recovery under R1 efficiency threshold (not preferred; no credit for landfill diversion only)",
 ];
+// Same stored values, short display labels. The value must stay the full
+// string — it is written to the batch record and feeds the record hash.
+const EOW_PROCESS_OPTIONS = EOW_PROCESSES.map(p => ({ value: p, label: p.split(" — ")[0] }));
 const EPR_BUYERS = [
   "Unilever Indonesia", "Danone AQUA", "Indofood",
   "Nestle Indonesia", "P&G Indonesia",
@@ -920,6 +923,26 @@ function maskName(val) {
     }
   }
   return first + mask.join("");
+}
+// Vehicle strings carry an Indonesian plate ("Grand Max B 9501 WAA"), which
+// identifies a driver as directly as a name does. Keep the model and the shape
+// of the plate, mask the identifying digits and letters.
+function maskVehicle(val) {
+  const s = String(val || "").trim();
+  if (!s) return s;
+  return s.replace(
+    /\b([A-Z]{1,2})\s+(\d{1,4})\s+([A-Z]{1,3})\b/g,
+    (_m, region, digits, suffix) =>
+      `${region} ${digits[0]}${"•".repeat(digits.length - 1)} ${suffix[0]}${"•".repeat(suffix.length - 1)}`,
+  );
+}
+// Haversine gives straight-line distance; real road distance runs longer, so
+// the figure is shown as a range rather than a single approximate number.
+const ROAD_FACTOR = 1.4;
+function fmtDistanceRange(km) {
+  if (!Number.isFinite(km) || km <= 0) return "—";
+  const dp = km < 1 ? 2 : 1;
+  return `${km.toFixed(dp)} – ${(km * ROAD_FACTOR).toFixed(dp)} km`;
 }
 function fmtDateTime(val) {
   if (!val) return "—";
@@ -3165,7 +3188,7 @@ function custodyStageRows(batch) {
       done: Boolean(traAct || batch.transportDate || batch.transportRef),
       when: traAct?.ts || batch.transportDate,
       lines: [
-        batch.pickupVehicle && `Vehicle: ${batch.pickupVehicle}`,
+        batch.pickupVehicle && `Vehicle: ${maskVehicle(batch.pickupVehicle)}`,
         batch.transportRef && `Manifest: ${batch.transportRef}`,
       ].filter(Boolean),
       geo: traAct?.geo || null,
@@ -3320,7 +3343,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
             ["Materials", `${mats.length} line${mats.length > 1 ? "s" : ""}`],
             ["Collection → EoW", duration || "—"],
             ["Custody devices", `${devices.size} distinct`],
-            ["Est. transport distance", totalDistanceKm > 0 ? `~${totalDistanceKm.toFixed(1)} km` : "—"],
+            ["Est. transport distance", fmtDistanceRange(totalDistanceKm)],
           ].map(([label, value]) => (
             <div key={label} style={{ flex: "1 1 120px", padding: "12px 18px", borderRight: `1px solid ${C.cream}` }}>
               <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: C.mutedLight, textTransform: "uppercase", fontWeight: 700 }}>{label}</div>
@@ -3376,7 +3399,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
                     )}
                     {s.done && Number.isFinite(s.distanceFromPrevKm) && (
                       <span style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 999, border: `1px solid ${C.creamDark}`, color: C.muted }}>
-                        ↦ ~{s.distanceFromPrevKm < 1 ? s.distanceFromPrevKm.toFixed(2) : s.distanceFromPrevKm.toFixed(1)} km from previous stage
+                        ↦ {fmtDistanceRange(s.distanceFromPrevKm)} from previous stage
                       </span>
                     )}
                   </div>
@@ -5942,7 +5965,7 @@ export default function RezyMRVLive() {
                           />
                         );
                       })()}
-                      <Sel label={t("eowProcess")} value={dsp.eowProcess} onChange={v => setDsp(p=>({...p,eowProcess:v}))} options={EOW_PROCESSES} required />
+                      <Sel label={t("eowProcess")} value={dsp.eowProcess} onChange={v => setDsp(p=>({...p,eowProcess:v}))} options={EOW_PROCESS_OPTIONS} required />
                       <Inp label={t("processingTimestamp")} value={jakartaNowLabel(clockNow)} onChange={() => {}} disabled />
                       {SHOW_MAP_PICKER && <MapPicker value={dspGeo} onChange={setDspGeo} lang={lang} />}
                     </div>
