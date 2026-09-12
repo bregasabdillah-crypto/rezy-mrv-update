@@ -221,6 +221,9 @@ const TRANSLATIONS = {
     batchesAvailableOfftaker: "Batches Available for Off-taker Pickup (processed at hub)",
     // Admin Review / Verify tab
     adminReviewTitle: "Admin Review",
+    adminReviewSubtitle: "Accept or reject operator inputs",
+    filterAll: "All",
+    pageLabel: "Page",
     filterInput: "Filter Input",
     findReviewItems: "Find Review Items",
     findRecords: "Find Records",
@@ -520,6 +523,9 @@ const TRANSLATIONS = {
     batchesAvailableOfftaker: "Batch Tersedia untuk Pengambilan Off-taker (diproses di hub)",
     // Admin Review / Verify tab
     adminReviewTitle: "Tinjauan Admin",
+    adminReviewSubtitle: "Terima atau tolak input operator",
+    filterAll: "Semua",
+    pageLabel: "Halaman",
     filterInput: "Saring Input",
     findReviewItems: "Cari Item Tinjauan",
     findRecords: "Cari Catatan",
@@ -3719,6 +3725,12 @@ export default function RezyMRVLive() {
   const [reviewPage, setReviewPage] = useState(1);
   const [clockNow, setClockNow] = useState(nowISO());
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth <= 680 : false);
+  // The seven-column review table needs ~880px plus the page gutters. Below
+  // that it can only be shown by clipping or side-scrolling it, so the card
+  // view is used instead. Wider than isMobile on purpose: at 700-900px the
+  // table was still being cut off at the container's edge.
+  const REVIEW_TABLE_MIN_VIEWPORT = 920;
+  const [isNarrow, setIsNarrow] = useState(() => typeof window !== "undefined" ? window.innerWidth < REVIEW_TABLE_MIN_VIEWPORT : false);
   const [isAdminReviewDevice, setIsAdminReviewDevice] = useState(() => {
     try { return localStorage.getItem(ADMIN_REVIEW_DEVICE_KEY) === "true"; } catch { return false; }
   });
@@ -3838,7 +3850,10 @@ export default function RezyMRVLive() {
   }, []);
 
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= 680);
+    const onResize = () => {
+      setIsMobile(window.innerWidth <= 680);
+      setIsNarrow(window.innerWidth < REVIEW_TABLE_MIN_VIEWPORT);
+    };
     onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -5036,7 +5051,7 @@ export default function RezyMRVLive() {
   const reviewPageCount = Math.max(1, Math.ceil(filteredReviewBatches.length / reviewPageSize));
   const safeReviewPage = Math.min(reviewPage, reviewPageCount);
   const pagedReviewBatches = filteredReviewBatches.slice((safeReviewPage - 1) * reviewPageSize, safeReviewPage * reviewPageSize);
-  const effectiveReviewViewMode = reviewViewMode;
+  const effectiveReviewViewMode = isNarrow ? "card" : reviewViewMode;
   const recordPageSize = 20;
   const normalizedRecordQuery = recordQuery.trim().toLowerCase();
   const filteredRecordRows = recordRows.filter(row => {
@@ -5076,10 +5091,10 @@ export default function RezyMRVLive() {
 	  const NAV = [
 	    { key: "dashboard", label: t("dashboard") },
 	    { key: "log",       label: t("newBatch"),  gate: "log" },
-	    { key: "verify",    label: "Admin Review", gate: "verify" },
+	    { key: "verify",    label: t("adminReviewTitle"), gate: "verify" },
 		    { key: "records",   label: t("records"), gate: "records" },
-	    { key: "custody",   label: "Chain of Custody", gate: "custody" },
-	    { key: "analytics", label: "Analytics",     gate: "settings" },
+	    { key: "custody",   label: t("chainOfCustody"), gate: "custody" },
+	    { key: "analytics", label: t("analyticsTitle"), gate: "settings" },
 	    { key: "settings",  label: t("settings"),  gate: "settings" },
   ].filter(n => !n.gate || canAccess(n.gate));
   const detailHandwritten = getHandwrittenWeighing(detailView);
@@ -5861,7 +5876,7 @@ export default function RezyMRVLive() {
                           {offtakerPageCount > 1 && (
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                               <Btn small onClick={() => setOfftakerPage(p => Math.max(0, p - 1))} disabled={offtakerPage === 0} variant="ghost">{t("prevLabel")}</Btn>
-                              <span style={{ fontSize: 12, color: C.muted }}>Page {offtakerPage + 1} of {offtakerPageCount}</span>
+                              <span style={{ fontSize: 12, color: C.muted }}>{t("pageLabel")} {offtakerPage + 1} / {offtakerPageCount}</span>
                               <Btn small onClick={() => setOfftakerPage(p => Math.min(offtakerPageCount - 1, p + 1))} disabled={offtakerPage >= offtakerPageCount - 1} variant="ghost">{t("nextLabel")}</Btn>
                             </div>
                           )}
@@ -6023,11 +6038,13 @@ export default function RezyMRVLive() {
 	              <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "flex-end", gap: 12, marginBottom: 20 }}>
 	                <div>
 	                  <h1 style={{ fontSize: isMobile ? 28 : 24, lineHeight: 1.08, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: "0 0 4px" }}>{t("adminReviewTitle")}</h1>
-	                  <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Accept or reject operator inputs · {roleObj.name}</p>
+	                  <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>{t("adminReviewSubtitle")} · {roleObj.name}</p>
 	                </div>
 		                <div style={{ display: "flex", alignItems: "center", justifyContent: isMobile ? "space-between" : "flex-start", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
 		                  <Btn small onClick={() => refreshBatchesFromSheet(true)} variant="secondary" disabled={!sheetsUrl}>{t("refreshData")}</Btn>
-		                  <div style={{ display: "flex", background: C.creamDark, borderRadius: 8, padding: 3 }}>
+		                  {/* Hidden below the table's minimum width: the list option
+		                      cannot be honoured there, so offering it is misleading. */}
+		                  <div style={{ display: isNarrow ? "none" : "flex", background: C.creamDark, borderRadius: 8, padding: 3 }}>
 		                    {[
 		                      { key: "list", label: t("listView") },
 		                      { key: "card", label: t("cardView") },
@@ -6051,7 +6068,12 @@ export default function RezyMRVLive() {
 	              <Card style={{ marginBottom: 12 }}>
 	                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 0.8fr", gap: 12, alignItems: "end" }}>
 	                  <Inp label={t("findReviewItems")} value={reviewQuery} onChange={setReviewQuery} placeholder={t("searchRecordsPlaceholder")} />
-	                  <Sel label={t("filterInput")} value={reviewStageFilter} onChange={setReviewStageFilter} options={["all", "collection", "transport", "processing"]} />
+	                  <Sel label={t("filterInput")} value={reviewStageFilter} onChange={setReviewStageFilter} options={[
+	                    { value: "all", label: t("filterAll") },
+	                    { value: "collection", label: t("statusCollection") },
+	                    { value: "transport", label: t("statusTransport") },
+	                    { value: "processing", label: t("statusProcessing") },
+	                  ]} />
 	                </div>
 	              </Card>
 
@@ -6064,16 +6086,19 @@ export default function RezyMRVLive() {
 	                </Card>
 	              ) : effectiveReviewViewMode === "list" ? (
 	                <div style={{ width: "100%", borderRadius: 14, border: `1px solid ${C.creamDark}`, background: C.white, overflow: "hidden" }}>
-	                <div style={{ width: "100%", overflowX: isMobile ? "auto" : "hidden" }}>
-	                  <table style={{ width: "100%", minWidth: isMobile ? 720 : undefined, borderCollapse: "collapse", tableLayout: "fixed" }}>
+	                {/* overflowX must be auto at every width, not just mobile: between
+	                    681px and ~980px the table was squeezed with overflow hidden, so
+	                    the action buttons were clipped with no way to scroll to them. */}
+	                <div style={{ width: "100%", overflowX: "auto" }}>
+	                  <table style={{ width: "100%", minWidth: 880, borderCollapse: "collapse", tableLayout: "fixed" }}>
 	                    <colgroup>
-		                      <col style={{ width: "12%" }} />
+		                      <col style={{ width: "11%" }} />
 		                      <col style={{ width: "15%" }} />
 		                      <col style={{ width: "19%" }} />
 		                      <col style={{ width: "9%" }} />
-		                      <col style={{ width: "10%" }} />
-		                      <col style={{ width: "12%" }} />
-		                      <col style={{ width: "23%" }} />
+		                      <col style={{ width: "9%" }} />
+		                      <col style={{ width: "11%" }} />
+		                      <col style={{ width: "26%" }} />
 	                    </colgroup>
 	                    <thead>
 	                      <tr style={{ background: C.cream }}>
@@ -6087,7 +6112,7 @@ export default function RezyMRVLive() {
 	                        const latestActivity = [...(b.activities || [])].reverse().find(a => ["Collection", "Transport", "Processing"].includes(a.stage)) || {};
 	                        const rowMaterial = reviewRowMaterial(b);
 	                        return (
-	                          <tr key={b.id} style={{ background: i % 2 === 0 ? C.cardBg : C.creamMid, borderBottom: `1px solid ${C.creamDark}` }}>
+	                          <tr key={b.id} style={{ background: i % 2 === 0 ? C.cardBg : C.creamMid, borderBottom: i === pagedReviewBatches.length - 1 ? "none" : `1px solid ${C.creamDark}` }}>
 	                            <td onClick={() => setDetailView(detailForMaterial(b, rowMaterial.material, rowMaterial.index))} style={{ padding: "10px", fontFamily: "'DM Mono', monospace", fontSize: 10, color: C.forest, fontWeight: 700, lineHeight: 1.25, overflowWrap: "anywhere", cursor: "pointer" }}>{b.batchId}</td>
 	                            <td style={{ padding: "10px" }}><Badge status={b.status} lang={lang} /></td>
 	                            <td style={{ padding: "10px", fontSize: 11, lineHeight: 1.25, overflowWrap: "anywhere" }}>{rowMaterial.feedstockType}{rowMaterial.index ? ` (M${rowMaterial.index})` : ""}</td>
@@ -6095,7 +6120,7 @@ export default function RezyMRVLive() {
 	                            <td style={{ padding: "10px", fontSize: 10, color: C.muted, overflowWrap: "anywhere" }}>{latestActivity.actor || b.loggedBy || "-"}</td>
 	                            <td style={{ padding: "10px", fontSize: 10, color: C.muted, lineHeight: 1.35 }}>{fmtDateTime(latestActivity.ts || b.createdAt)}</td>
 		                            <td style={{ padding: "10px" }}>
-		                              <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", alignItems: "center" }}>
+		                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
 	                                <Btn small onClick={() => approveBatchInput(b.id)} variant="blue">{t("acceptLabel")}</Btn>
 	                                <Btn small onClick={() => setRejectTarget(b.id)} variant="danger">{t("reject")}</Btn>
 	                                <Btn small onClick={() => setDetailView(detailForMaterial(b))} variant="ghost">{t("detailsLabel")}</Btn>
@@ -6107,13 +6132,15 @@ export default function RezyMRVLive() {
 	                    </tbody>
 	                  </table>
 	                </div>
-	                  <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 8, padding: "10px 12px", borderTop: `1px solid ${C.creamDark}`, background: C.cardBg }}>
+	                  {/* 10px horizontal padding so this lines up with the table cells
+	                      above it, which use padding: 10px. */}
+	                  <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 8, padding: "10px", borderTop: `1px solid ${C.creamDark}`, background: C.cardBg }}>
 	                    <div style={{ fontSize: 11, color: C.muted }}>
 	                      {t("showingLabel")} {filteredReviewBatches.length === 0 ? 0 : ((safeReviewPage - 1) * reviewPageSize) + 1}-{Math.min(safeReviewPage * reviewPageSize, filteredReviewBatches.length)} {t("ofLabel")} {filteredReviewBatches.length}
 	                    </div>
 	                    <div style={{ display: "flex", alignItems: "center", justifyContent: isMobile ? "space-between" : "flex-start", gap: 8 }}>
 	                      <Btn small onClick={() => setReviewPage(p => Math.max(1, p - 1))} disabled={safeReviewPage <= 1} variant="ghost">{t("prevLabel")}</Btn>
-	                      <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>Page {safeReviewPage} / {reviewPageCount}</span>
+	                      <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{t("pageLabel")} {safeReviewPage} / {reviewPageCount}</span>
 	                      <Btn small onClick={() => setReviewPage(p => Math.min(reviewPageCount, p + 1))} disabled={safeReviewPage >= reviewPageCount} variant="ghost">{t("nextLabel")}</Btn>
 	                    </div>
 	                  </div>
@@ -6212,7 +6239,7 @@ export default function RezyMRVLive() {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: isMobile ? "space-between" : "flex-start", gap: 8 }}>
                     <Btn small onClick={() => setReviewPage(p => Math.max(1, p - 1))} disabled={safeReviewPage <= 1} variant="ghost">{t("prevLabel")}</Btn>
-                    <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>Page {safeReviewPage} / {reviewPageCount}</span>
+                    <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{t("pageLabel")} {safeReviewPage} / {reviewPageCount}</span>
                     <Btn small onClick={() => setReviewPage(p => Math.min(reviewPageCount, p + 1))} disabled={safeReviewPage >= reviewPageCount} variant="ghost">{t("nextLabel")}</Btn>
                   </div>
                 </div>
@@ -6340,7 +6367,7 @@ export default function RezyMRVLive() {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <Btn small onClick={() => setRecordPage(p => Math.max(1, p - 1))} disabled={safeRecordPage <= 1} variant="ghost">{t("prevLabel")}</Btn>
-                      <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>Page {safeRecordPage} / {recordPageCount}</span>
+                      <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{t("pageLabel")} {safeRecordPage} / {recordPageCount}</span>
                       <Btn small onClick={() => setRecordPage(p => Math.min(recordPageCount, p + 1))} disabled={safeRecordPage >= recordPageCount} variant="ghost">{t("nextLabel")}</Btn>
                     </div>
                   </div>
