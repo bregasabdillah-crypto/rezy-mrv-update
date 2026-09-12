@@ -82,6 +82,9 @@ const TRANSLATIONS = {
     collectionPhoto: "Collection Photo (chain-of-custody evidence)",
     enterLapakName: "Enter lapak name",
     endToEndYield: "End-to-end yield",
+    completedLinesOnly: "completed lines only",
+    stillInProgressKg: "Still in progress",
+    notCountedAsLoss: "not counted as loss",
     lostLabel: "lost across the chain",
     collectedLabelShort: "collected",
     hubAcceptedLabelShort: "accepted at hub",
@@ -405,6 +408,9 @@ const TRANSLATIONS = {
     collectionPhoto: "Foto Pengumpulan (bukti chain-of-custody)",
     enterLapakName: "Masukkan nama lapak",
     endToEndYield: "Yield ujung ke ujung",
+    completedLinesOnly: "hanya baris yang selesai",
+    stillInProgressKg: "Masih berjalan",
+    notCountedAsLoss: "tidak dihitung sebagai kehilangan",
     lostLabel: "hilang sepanjang rantai",
     collectedLabelShort: "terkumpul",
     hubAcceptedLabelShort: "diterima di hub",
@@ -3277,33 +3283,54 @@ function allLinesHandedOn(batch) {
 function endToEndYield(batch) {
   const mats = (batch.materials && batch.materials.length)
     ? batch.materials
-    : [{ weightKg: batch.weightKg }];
-  const collectedKg = mats.reduce((s, m) => s + (Number(m.weightKg) || 0), 0);
-
-  const hubAcceptedKg = (batch.processedMaterials && batch.processedMaterials.length)
-    ? batch.processedMaterials.reduce((s, m) => s + (Number(m.acceptedWeightKg) || 0), 0)
-    : Number(batch.acceptedWeightKg) || 0;
-
-  const shippedKg = (batch.offtakerMaterials || []).reduce((s, m) => s + (Number(m.weightKg) || 0), 0);
+    : [{ index: 1, weightKg: batch.weightKg }];
+  const processed = (batch.processedMaterials && batch.processedMaterials.length)
+    ? batch.processedMaterials
+    : [];
 
   const dsAccepted = Number(batch.downstreamAcceptedWeightKg) || 0;
   const dsRejected = Number(batch.downstreamRejectedWeightKg) || 0;
   const dsContamination = Number(batch.downstreamContaminationKg) || 0;
+  const downstreamRan = dsAccepted > 0 || Boolean(batch.downstreamProcessingEndDate);
+
+  // Only lines that have actually been through the whole chain count towards the
+  // yield. Material still sitting at the hub has not been lost, it just has not
+  // finished, and folding it into the loss made the figure nonsense: DPK-QNR7HQ
+  // read "218 kg (90.5%) lost" when 205 kg of that was untouched PET at the hub.
+  const completedIdx = downstreamRan ? shippedLineIndexes(batch) : [];
+  const completedSet = new Set(completedIdx.map(String));
+
+  const weightOfCollectionLine = (idx) => {
+    const hit = mats.find(m => String(m.index ?? 1) === String(idx));
+    return Number(hit?.weightKg) || 0;
+  };
+  const collectedKg = completedIdx.reduce((s, i) => s + weightOfCollectionLine(i), 0);
+  const hubAcceptedKg = processed.length
+    ? processed
+        .filter(m => completedSet.has(String(m.processedMaterialIndex || 1)))
+        .reduce((s, m) => s + (Number(m.acceptedWeightKg) || 0), 0)
+    : (completedIdx.length ? Number(batch.acceptedWeightKg) || 0 : 0);
+  const shippedKg = (batch.offtakerMaterials || []).reduce((s, m) => s + (Number(m.weightKg) || 0), 0);
+
+  // Weight collected on lines that have not completed the chain yet.
+  const pendingKg = mats.reduce((s, m) => completedSet.has(String(m.index ?? 1)) ? s : s + (Number(m.weightKg) || 0), 0);
+
   // The run's own input: what it reports having handled, falling back to the weight
   // this batch shipped when the run recorded nothing else.
   const dsInputKg = (dsAccepted + dsRejected + dsContamination) || shippedKg;
   const dsRatio = dsInputKg > 0 ? dsAccepted / dsInputKg : 0;
-
   // This batch's share of the run's output.
   const attributedKg = shippedKg > 0 ? shippedKg * dsRatio : 0;
 
-  const hasDownstream = dsAccepted > 0 || Boolean(batch.downstreamProcessingEndDate);
   const varianceKg = collectedKg - attributedKg;
   const retainedPct = collectedKg > 0 ? (attributedKg / collectedKg) * 100 : 0;
   const variancePct = collectedKg > 0 ? (varianceKg / collectedKg) * 100 : 0;
 
   return {
-    hasDownstream,
+    // Nothing to report until at least one line has run the full chain.
+    hasDownstream: downstreamRan && completedIdx.length > 0 && collectedKg > 0,
+    partial: pendingKg > 0,
+    pendingKg,
     collectedKg,
     hubAcceptedKg,
     shippedKg,
@@ -3526,7 +3553,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
         {e2e.hasDownstream && (
           <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.creamMid}`, background: C.creamMid, fontSize: 12, color: C.charcoal, lineHeight: 1.6 }}>
             <div style={{ fontWeight: 800, color: C.forest, marginBottom: 4 }}>
-              {t("endToEndYield")}: {e2e.varianceKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg ({e2e.variancePct.toFixed(1)}%) {t("lostLabel")}
+              {t("endToEndYield")}{e2e.partial ? ` · ${t("completedLinesOnly")}` : ""}: {e2e.varianceKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg ({e2e.variancePct.toFixed(1)}%) {t("lostLabel")}
             </div>
             <div style={{ color: C.muted }}>
               {e2e.collectedKg.toLocaleString()} kg {t("collectedLabelShort")} → {e2e.hubAcceptedKg.toLocaleString()} kg {t("hubAcceptedLabelShort")} → {e2e.shippedKg.toLocaleString()} kg {t("shippedLabelShort")} → {e2e.attributedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg {t("downstreamOutputLabelShort")}
@@ -3534,6 +3561,11 @@ function ChainOfCustodyPanel({ batches, lang }) {
             {e2e.proRata && (
               <div style={{ color: C.muted, marginTop: 2 }}>
                 {t("proRataNote")}: {e2e.dsRatioPct.toFixed(1)}% × {e2e.shippedKg.toLocaleString()} kg ({e2e.dsInputKg.toLocaleString()} kg {t("downstreamRunInput")})
+              </div>
+            )}
+            {e2e.partial && (
+              <div style={{ color: "#7a5800", marginTop: 4, fontWeight: 600 }}>
+                {t("stillInProgressKg")}: {e2e.pendingKg.toLocaleString()} kg — {t("notCountedAsLoss")}
               </div>
             )}
           </div>
