@@ -80,6 +80,15 @@ const TRANSLATIONS = {
     collectionDate: "Collection Date", notes: "Notes / Field Observations",
     notesPlaceholder: "Condition of batch, contamination notes, etc.",
     collectionPhoto: "Collection Photo (chain-of-custody evidence)",
+    enterLapakName: "Enter lapak name",
+    endToEndYield: "End-to-end yield",
+    lostLabel: "lost across the chain",
+    collectedLabelShort: "collected",
+    hubAcceptedLabelShort: "accepted at hub",
+    shippedLabelShort: "shipped to off-taker",
+    downstreamOutputLabelShort: "downstream output",
+    proRataNote: "Pro rata share of the downstream run",
+    downstreamRunInput: "run input",
     lapakBillPhoto: "Lapak Bill Photo",
     qcReportPhoto: "QC Report Photo",
     qcReportPhotoNote: "Photograph the quality-control report for this processed line.",
@@ -394,6 +403,15 @@ const TRANSLATIONS = {
     collectionDate: "Tanggal Pengumpulan", notes: "Catatan / Observasi Lapangan",
     notesPlaceholder: "Kondisi batch, catatan kontaminasi, dll.",
     collectionPhoto: "Foto Pengumpulan (bukti chain-of-custody)",
+    enterLapakName: "Masukkan nama lapak",
+    endToEndYield: "Yield ujung ke ujung",
+    lostLabel: "hilang sepanjang rantai",
+    collectedLabelShort: "terkumpul",
+    hubAcceptedLabelShort: "diterima di hub",
+    shippedLabelShort: "dikirim ke off-taker",
+    downstreamOutputLabelShort: "keluaran hilir",
+    proRataNote: "Porsi pro rata dari proses hilir",
+    downstreamRunInput: "masukan proses",
     lapakBillPhoto: "Foto Nota Lapak",
     qcReportPhoto: "Foto Laporan QC",
     qcReportPhotoNote: "Foto laporan kendali mutu untuk baris material ini.",
@@ -2616,7 +2634,7 @@ function Sel({ label, value, onChange, options, required, disabled }) {
   );
 }
 
-function SearchSel({ label, value, onChange, options, required, disabled, placeholder, lang = "en" }) {
+function SearchSel({ label, value, onChange, options, required, disabled, placeholder, emptyLabel, lang = "en" }) {
   const t = useT(lang);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -2646,7 +2664,7 @@ function SearchSel({ label, value, onChange, options, required, disabled, placeh
           fontSize: 13, color: value ? C.charcoal : C.muted, fontFamily: "inherit",
           cursor: disabled ? "default" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
-        <span>{selected ? selected.label : t("selectPlaceholder")}</span>
+        <span>{selected ? selected.label : (emptyLabel || t("selectPlaceholder"))}</span>
         <span style={{ fontSize: 10, color: C.forest }}>▼</span>
       </div>
       {open && !disabled && (
@@ -3248,6 +3266,58 @@ function allLinesHandedOn(batch) {
   return processedLineIndexes(batch).length > 0 && unshippedLineIndexes(batch).length === 0;
 }
 
+// End-to-end yield: what survives from the weight collected at the lapak to the
+// output of downstream processing.
+//
+// A downstream run usually processes a mixed load drawn from several hub batches,
+// and only its own totals are recorded. So the batch is not credited with the run's
+// whole output — the run's recovery ratio (accepted / input) is applied pro rata to
+// the weight THIS batch contributed. A run that sources from B, C and D and yields
+// 90% credits each of them 90% of what they put in, which is the rule asked for.
+function endToEndYield(batch) {
+  const mats = (batch.materials && batch.materials.length)
+    ? batch.materials
+    : [{ weightKg: batch.weightKg }];
+  const collectedKg = mats.reduce((s, m) => s + (Number(m.weightKg) || 0), 0);
+
+  const hubAcceptedKg = (batch.processedMaterials && batch.processedMaterials.length)
+    ? batch.processedMaterials.reduce((s, m) => s + (Number(m.acceptedWeightKg) || 0), 0)
+    : Number(batch.acceptedWeightKg) || 0;
+
+  const shippedKg = (batch.offtakerMaterials || []).reduce((s, m) => s + (Number(m.weightKg) || 0), 0);
+
+  const dsAccepted = Number(batch.downstreamAcceptedWeightKg) || 0;
+  const dsRejected = Number(batch.downstreamRejectedWeightKg) || 0;
+  const dsContamination = Number(batch.downstreamContaminationKg) || 0;
+  // The run's own input: what it reports having handled, falling back to the weight
+  // this batch shipped when the run recorded nothing else.
+  const dsInputKg = (dsAccepted + dsRejected + dsContamination) || shippedKg;
+  const dsRatio = dsInputKg > 0 ? dsAccepted / dsInputKg : 0;
+
+  // This batch's share of the run's output.
+  const attributedKg = shippedKg > 0 ? shippedKg * dsRatio : 0;
+
+  const hasDownstream = dsAccepted > 0 || Boolean(batch.downstreamProcessingEndDate);
+  const varianceKg = collectedKg - attributedKg;
+  const retainedPct = collectedKg > 0 ? (attributedKg / collectedKg) * 100 : 0;
+  const variancePct = collectedKg > 0 ? (varianceKg / collectedKg) * 100 : 0;
+
+  return {
+    hasDownstream,
+    collectedKg,
+    hubAcceptedKg,
+    shippedKg,
+    dsInputKg,
+    dsRatioPct: dsRatio * 100,
+    attributedKg,
+    varianceKg,
+    variancePct,
+    retainedPct,
+    // Pro rata only bites when the run handled more than this batch shipped.
+    proRata: dsInputKg > 0 && shippedKg > 0 && Math.abs(dsInputKg - shippedKg) > 0.01,
+  };
+}
+
 function custodyStageRows(batch) {
   const ipMap = parseInputterMap(batch.inputterIp);
   const devMap = parseInputterMap(batch.inputterDevice);
@@ -3400,6 +3470,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
   const allDone = stages.every(s => s.done);
   const duration = custodyDuration(stages);
   const totalDistanceKm = stages.reduce((s, st) => s + (Number.isFinite(st.distanceFromPrevKm) ? st.distanceFromPrevKm : 0), 0);
+  const e2e = endToEndYield(batch);
 
   return (
     <div>
@@ -3443,6 +3514,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
             ["Collection → EoW", duration || "—"],
             ["Custody devices", `${devices.size} distinct`],
             ["Est. transport distance", fmtDistanceRange(totalDistanceKm)],
+            [t("endToEndYield"), e2e.hasDownstream ? `${e2e.retainedPct.toFixed(1)}%` : "—"],
           ].map(([label, value]) => (
             <div key={label} style={{ flex: "1 1 120px", padding: "12px 18px", borderRight: `1px solid ${C.cream}` }}>
               <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: C.mutedLight, textTransform: "uppercase", fontWeight: 700 }}>{label}</div>
@@ -3450,6 +3522,22 @@ function ChainOfCustodyPanel({ batches, lang }) {
             </div>
           ))}
         </div>
+
+        {e2e.hasDownstream && (
+          <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.creamMid}`, background: C.creamMid, fontSize: 12, color: C.charcoal, lineHeight: 1.6 }}>
+            <div style={{ fontWeight: 800, color: C.forest, marginBottom: 4 }}>
+              {t("endToEndYield")}: {e2e.varianceKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg ({e2e.variancePct.toFixed(1)}%) {t("lostLabel")}
+            </div>
+            <div style={{ color: C.muted }}>
+              {e2e.collectedKg.toLocaleString()} kg {t("collectedLabelShort")} → {e2e.hubAcceptedKg.toLocaleString()} kg {t("hubAcceptedLabelShort")} → {e2e.shippedKg.toLocaleString()} kg {t("shippedLabelShort")} → {e2e.attributedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg {t("downstreamOutputLabelShort")}
+            </div>
+            {e2e.proRata && (
+              <div style={{ color: C.muted, marginTop: 2 }}>
+                {t("proRataNote")}: {e2e.dsRatioPct.toFixed(1)}% × {e2e.shippedKg.toLocaleString()} kg ({e2e.dsInputKg.toLocaleString()} kg {t("downstreamRunInput")})
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ padding: "14px 18px 4px", display: "flex", flexWrap: "wrap", gap: 8 }}>
           {mats.map((m, i) => (
@@ -3779,8 +3867,8 @@ export default function RezyMRVLive() {
   const [stage, setStage] = useState(1);
   const [entryMode, setEntryMode] = useState(null);
   const [activeId, setActiveId] = useState(null);
-  const [col, setCol] = useState({ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", materials: [{ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }], collectorId: COLLECTORS[0], weighingEquipId: SCALES[0], collectionDate: null, notes: "", photoDataUrl: null, lapakBillPhotoDataUrl: null, handwrittenWeighingIdDataUrl: null, handwrittenInput: "", handwrittenWeighing: null, digitizedScaleKg: "", calibCertUrl: null });
-  const [directMeta, setDirectMeta] = useState({ batchId: "", manifestRef: "", feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", collectorId: COLLECTORS[0], notes: "" });
+  const [col, setCol] = useState({ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", materials: [{ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }], collectorId: "", weighingEquipId: SCALES[0], collectionDate: null, notes: "", photoDataUrl: null, lapakBillPhotoDataUrl: null, handwrittenWeighingIdDataUrl: null, handwrittenInput: "", handwrittenWeighing: null, digitizedScaleKg: "", calibCertUrl: null });
+  const [directMeta, setDirectMeta] = useState({ batchId: "", manifestRef: "", feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", collectorId: "", notes: "" });
   const [colGeo, setColGeo] = useState({ lat: "", lng: "" });
   const [trn, setTrn] = useState({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: PICKUP_VEHICLES[0] });
   const [trnGeo, setTrnGeo] = useState({ lat: "", lng: "" });
@@ -4283,7 +4371,7 @@ export default function RezyMRVLive() {
       feedstockType: FEEDSTOCK_TYPES[0],
       weightKg: "",
       materials: [{ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }],
-      collectorId: COLLECTORS[0],
+      collectorId: "",
       weighingEquipId: SCALES[0],
       collectionDate: null,
       notes: "",
@@ -4294,7 +4382,7 @@ export default function RezyMRVLive() {
       digitizedScaleKg: "",
       calibCertUrl: null,
     });
-    setDirectMeta({ batchId: "", manifestRef: "", feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", collectorId: COLLECTORS[0], notes: "" });
+    setDirectMeta({ batchId: "", manifestRef: "", feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", collectorId: "", notes: "" });
     setColGeo({ lat: "", lng: "" });
     setTrn({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: PICKUP_VEHICLES[0] });
     setTrnGeo({ lat: "", lng: "" });
@@ -5106,7 +5194,7 @@ export default function RezyMRVLive() {
     setCertView(updated);
     setActiveId(null);
     setStage(1);
-    setCol({ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", materials: [{ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }], collectorId: COLLECTORS[0], weighingEquipId: SCALES[0], collectionDate: null, notes: "", photoDataUrl: null, lapakBillPhotoDataUrl: null, handwrittenWeighingIdDataUrl: null, digitizedScaleKg: "", calibCertUrl: null });
+    setCol({ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "", materials: [{ feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }], collectorId: "", weighingEquipId: SCALES[0], collectionDate: null, notes: "", photoDataUrl: null, lapakBillPhotoDataUrl: null, handwrittenWeighingIdDataUrl: null, digitizedScaleKg: "", calibCertUrl: null });
     setColGeo({ lat: "", lng: "" });
     setTrn({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: PICKUP_VEHICLES[0] });
     setTrnGeo({ lat: "", lng: "" });
@@ -5839,7 +5927,7 @@ export default function RezyMRVLive() {
                           <span style={{ fontSize: 12, fontWeight: 800, color: C.forest, fontFamily: "'DM Mono', monospace" }}>Total {materialTotalKg(col.materials).toLocaleString()} kg</span>
                         </div>
                       </div>
-	                      <SearchSel label={t("collector")} value={col.collectorId} onChange={v => setCol(p=>({...p,collectorId:v}))} options={COLLECTORS} required lang={lang} />
+	                      <SearchSel label={t("collector")} value={col.collectorId} onChange={v => setCol(p=>({...p,collectorId:v}))} options={COLLECTORS} required lang={lang} emptyLabel={t("enterLapakName")} placeholder={t("enterLapakName")} />
 	                      <Sel label={t("weighingEquip")} value={col.weighingEquipId} onChange={v => setCol(p=>({...p,weighingEquipId:v}))} options={SCALES} required />
                       <Inp label={t("collectionTimestamp")} value={jakartaNowLabel(clockNow)} onChange={() => {}} disabled />
                       {SHOW_MAP_PICKER && <MapPicker value={colGeo} onChange={setColGeo} lang={lang} />}
@@ -5905,7 +5993,7 @@ export default function RezyMRVLive() {
                         <Inp label={t("referenceBatchId")} value={directMeta.batchId} onChange={() => {}} disabled />
                         <Sel label={t("feedstockType")} value={directMeta.feedstockType} onChange={v => setDirectMeta(p => ({ ...p, feedstockType: v }))} options={FEEDSTOCK_TYPES} required />
                         <Inp label={t("grossWeight")} type="number" value={directMeta.weightKg} onChange={v => setDirectMeta(p => ({ ...p, weightKg: v }))} placeholder={`${t("egPrefix")} 1500`} required />
-                        <SearchSel label={t("collector")} value={directMeta.collectorId} onChange={v => setDirectMeta(p => ({ ...p, collectorId: v }))} options={COLLECTORS} required lang={lang} />
+                        <SearchSel label={t("collector")} value={directMeta.collectorId} onChange={v => setDirectMeta(p => ({ ...p, collectorId: v }))} options={COLLECTORS} required lang={lang} emptyLabel={t("enterLapakName")} placeholder={t("enterLapakName")} />
                       </div>
                     )}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
@@ -5954,7 +6042,7 @@ export default function RezyMRVLive() {
                         <Inp label={t("referenceBatchId")} value={directMeta.batchId} onChange={() => {}} disabled />
                         <Sel label={t("feedstockType")} value={directMeta.feedstockType} onChange={v => setDirectMeta(p => ({ ...p, feedstockType: v }))} options={FEEDSTOCK_TYPES} required />
                         <Inp label={t("grossWeight")} type="number" value={directMeta.weightKg} onChange={v => setDirectMeta(p => ({ ...p, weightKg: v }))} placeholder={`${t("egPrefix")} 1500`} required />
-                        <SearchSel label={t("collector")} value={directMeta.collectorId} onChange={v => setDirectMeta(p => ({ ...p, collectorId: v }))} options={COLLECTORS} required lang={lang} />
+                        <SearchSel label={t("collector")} value={directMeta.collectorId} onChange={v => setDirectMeta(p => ({ ...p, collectorId: v }))} options={COLLECTORS} required lang={lang} emptyLabel={t("enterLapakName")} placeholder={t("enterLapakName")} />
                       </div>
                     )}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
