@@ -3556,6 +3556,11 @@ export default function RezyMRVLive() {
   const t = useT(lang);
   const [tab, setTab] = useState("dashboard");
   const [batches, setBatches] = useState([]);
+  // Always-current mirror of `batches`. setBatches' updater form runs on the next
+  // render, so handlers that need the post-update batch (to sync it) cannot read it
+  // back synchronously. mutateBatches keeps this ref in step immediately.
+  const batchesRef = useRef(batches);
+  useEffect(() => { batchesRef.current = batches; }, [batches]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
@@ -3996,11 +4001,13 @@ export default function RezyMRVLive() {
   }
 
   function mutateBatches(fn) {
-    setBatches(prev => {
-      const next = fn(prev);
-      persistBatches(next);
-      return next;
-    });
+    // Compute against the ref so successive calls within one tick still see each
+    // other's result, and so callers can read the outcome immediately.
+    const next = fn(batchesRef.current);
+    batchesRef.current = next;
+    setBatches(next);
+    persistBatches(next);
+    return next;
   }
 
   function updateBatch(id, patch) {
@@ -4536,9 +4543,11 @@ export default function RezyMRVLive() {
 
     const activityWithMaterial = { ...activity, stage: `Processing (M${procMaterial?.index || 1})` };
 
-    // Compute everything from the freshest batch state (prev), not the possibly-stale
+    // Compute everything from the freshest batch state, not the possibly-stale
     // `active` snapshot — otherwise a processed material line submitted just before this
     // one can be dropped from processedMaterials if `active` hadn't picked it up yet.
+    // mutateBatches now applies synchronously, so these stay defined below and the
+    // resulting batch actually reaches doSync (previously it never did).
     let updatedProcessedMaterials, allMaterialIndexes, processedIndexes, allProcessed, freshBatch;
     mutateBatches(prev => prev.map(b => {
       if (b.id !== activeId) return b;
@@ -5620,9 +5629,6 @@ export default function RezyMRVLive() {
                 {entryMode === "processing" && stage === 3 && (
                   <div>
                     <SectionTitle>{t("stageProcessing")}</SectionTitle>
-                    <div style={{ background: "#fff8e1", border: `1px solid #f0d58a`, borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#7a5800" }}>
-                      ⚠ End-of-Waste is reached when the material undergoes a qualifying recovery operation and meets all four criteria: (1) commonly used substance, (2) market/demand exists, (3) meets technical standards, (4) no adverse environmental impact. Landfill and open burning are excluded.
-                    </div>
                     <div style={{ marginBottom: 13 }}>
                       {processBatches.length > 0 ? (
                         <SearchSel
