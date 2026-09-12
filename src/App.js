@@ -3633,11 +3633,8 @@ function ChainOfCustodyPanel({ batches, lang }) {
           ))}
         </div>
 
-        <div style={{ marginTop: 6, padding: "11px 18px", background: C.cream, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11.5, color: C.forestDark }}>
-            🛡 Every stage independently logged with timestamp, network address and device fingerprint — material movement from lapak to downstream processing is verifiable.
-          </span>
-          <span style={{ marginLeft: "auto", fontSize: 10.5, color: C.muted, fontFamily: "'DM Mono', monospace" }}>mrv.rezycology.com</span>
+        <div style={{ marginTop: 6, padding: "11px 18px", background: C.cream, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <span style={{ fontSize: 10.5, color: C.muted, fontFamily: "'DM Mono', monospace" }}>mrv.rezycology.com</span>
         </div>
       </Card>
     </div>
