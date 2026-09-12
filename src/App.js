@@ -232,6 +232,8 @@ const TRANSLATIONS = {
     // Admin Review / Verify tab
     adminReviewTitle: "Admin Review",
     adminReviewSubtitle: "Accept or reject operator inputs",
+    selectedForTransport: "Selected for this Transport",
+    stageStalledLines: "Waiting on material lines still at the hub",
     filterAll: "All",
     pageLabel: "Page",
     filterInput: "Filter Input",
@@ -544,6 +546,8 @@ const TRANSLATIONS = {
     // Admin Review / Verify tab
     adminReviewTitle: "Tinjauan Admin",
     adminReviewSubtitle: "Terima atau tolak input operator",
+    selectedForTransport: "Dipilih untuk Transport Ini",
+    stageStalledLines: "Menunggu baris material yang masih di hub",
     filterAll: "Semua",
     pageLabel: "Halaman",
     filterInput: "Saring Input",
@@ -3197,6 +3201,30 @@ function haversineDistanceKm(geoA, geoB) {
   return R * c;
 }
 
+// A batch is only through a downstream stage once EVERY processed line has been
+// handed on. Shipping one line (LVP) while another (PET) is still at the hub used
+// to mark the whole batch complete, which overstated the chain of custody.
+function processedLineIndexes(batch) {
+  const pm = batch.processedMaterials || [];
+  if (pm.length) return pm.map(m => String(m.processedMaterialIndex || 1));
+  return batch.processedFeedstockType || batch.acceptedWeightKg ? ["1"] : [];
+}
+function shippedLineIndexes(batch) {
+  return (batch.offtakerMaterials || [])
+    .map(m => (m.processedMaterialIndex == null ? null : String(m.processedMaterialIndex)))
+    .filter(Boolean);
+}
+function unshippedLineIndexes(batch) {
+  const processed = processedLineIndexes(batch);
+  const shipped = shippedLineIndexes(batch);
+  // Rows written before per-line tracking carry no index; treat them as complete.
+  if (!shipped.length && (batch.offtakerMaterials || []).length) return [];
+  return processed.filter(i => !shipped.includes(i));
+}
+function allLinesHandedOn(batch) {
+  return processedLineIndexes(batch).length > 0 && unshippedLineIndexes(batch).length === 0;
+}
+
 function custodyStageRows(batch) {
   const ipMap = parseInputterMap(batch.inputterIp);
   const devMap = parseInputterMap(batch.inputterDevice);
@@ -3260,7 +3288,9 @@ function custodyStageRows(batch) {
     },
     {
       key: "offtaker_transport", title: "Offtaker Transport", icon: "🚛",
-      done: Boolean(oftAct || batch.offtakerTransportDate || batch.offtakerTransportRef),
+      // Not done while processed lines are still waiting at the hub.
+      done: Boolean(oftAct || batch.offtakerTransportDate || batch.offtakerTransportRef) && allLinesHandedOn(batch),
+      pendingLines: unshippedLineIndexes(batch),
       when: oftAct?.ts || batch.offtakerTransportDate,
       lines: [
         batch.offtakerTransportRef && `Manifest: ${batch.offtakerTransportRef}`,
@@ -3274,7 +3304,9 @@ function custodyStageRows(batch) {
     },
     {
       key: "downstream_processing", title: "Downstream Processing", icon: "♻️",
-      done: Boolean(dspAct || batch.downstreamProcessingEndDate || batch.downstreamEowProcess),
+      // End-of-Waste is only reached for the batch when nothing is left behind.
+      done: Boolean(dspAct || batch.downstreamProcessingEndDate || batch.downstreamEowProcess) && allLinesHandedOn(batch),
+      pendingLines: unshippedLineIndexes(batch),
       when: dspAct?.ts || batch.downstreamProcessingEndDate,
       lines: [
         batch.downstreamEowProcess && eowLabel(batch.downstreamEowProcess),
@@ -3431,6 +3463,11 @@ function ChainOfCustodyPanel({ batches, lang }) {
                 {s.lines.map((line, i) => (
                   <div key={i} style={{ fontSize: 12, color: C.muted, marginTop: i === 0 ? 6 : 2, lineHeight: 1.5 }}>{line}</div>
                 ))}
+                {(s.pendingLines || []).length > 0 && (
+                  <div style={{ fontSize: 11.5, color: "#7a5800", background: "#fff8e1", border: `1px solid #f0d58a`, borderRadius: 8, padding: "6px 10px", marginTop: 7, fontWeight: 600 }}>
+                    {t("stageStalledLines")}: M{(s.pendingLines || []).join(", M")}
+                  </div>
+                )}
                 {(s.evidence.length > 0 || s.geo) && (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 7 }}>
                     {s.evidence.map(ev => (
@@ -3455,7 +3492,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
 
         <div style={{ marginTop: 6, padding: "11px 18px", background: C.cream, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11.5, color: C.forestDark }}>
-            🛡 Every stage independently logged with timestamp, network address and device fingerprint — material movement from lapak to processing hub is verifiable.
+            🛡 Every stage independently logged with timestamp, network address and device fingerprint — material movement from lapak to downstream processing is verifiable.
           </span>
           <span style={{ marginLeft: "auto", fontSize: 10.5, color: C.muted, fontFamily: "'DM Mono', monospace" }}>mrv.rezycology.com</span>
         </div>
@@ -3726,7 +3763,7 @@ export default function RezyMRVLive() {
   const [trnGeo, setTrnGeo] = useState({ lat: "", lng: "" });
   const [prc, setPrc] = useState({ processor: PROCESSING_FACILITIES[0], processorOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
   const [prcGeo, setPrcGeo] = useState({ lat: "", lng: "" });
-  const [oft, setOft] = useState({ selectedBatchIds: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
+  const [oft, setOft] = useState({ selectedLines: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
   const [oftGeo, setOftGeo] = useState({ lat: "", lng: "" });
   const [offtakerPage, setOfftakerPage] = useState(0);
   const [dsp, setDsp] = useState({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
@@ -3826,12 +3863,30 @@ export default function RezyMRVLive() {
   const hasUnprocessedMaterial = (b) => allMaterialIndexesOf(b).some(idx => !processedIndexesOf(b).includes(idx));
   // Batches already picked up by transport, awaiting processing at the facility (incl. partially processed batches with remaining material lines)
   const processBatches = visibleBatches.filter(b => (b.status === "transport" || b.status === "processing") && hasUnprocessedMaterial(b));
-  // Batches with at least one processed material line, awaiting transport to off-takers
-  const offtakerBatches = visibleBatches.filter(b => b.status === "processing" && (b.processedMaterials || []).length > 0);
   // Material lines per off-taker-eligible batch (falls back to a single line from the aggregate fields)
   const offtakerBatchLines = (b) => (b.processedMaterials && b.processedMaterials.length)
-    ? b.processedMaterials.map(m => ({ feedstockType: m.processedFeedstockType, weightKg: m.acceptedWeightKg, processor: m.processor }))
-    : [{ feedstockType: b.processedFeedstockType || b.feedstockType, weightKg: b.acceptedWeightKg || b.weightKg, processor: b.processor }];
+    ? b.processedMaterials.map(m => ({ index: String(m.processedMaterialIndex || 1), feedstockType: m.processedFeedstockType, weightKg: m.acceptedWeightKg, processor: m.processor }))
+    : [{ index: "1", feedstockType: b.processedFeedstockType || b.feedstockType, weightKg: b.acceptedWeightKg || b.weightKg, processor: b.processor }];
+  // Processed lines already handed to an off-taker. Each shipped entry records the
+  // processed line it came from, so a batch can be shipped one line at a time.
+  const shippedIndexesOf = (b) => (b.offtakerMaterials || [])
+    .map(m => (m.processedMaterialIndex === undefined || m.processedMaterialIndex === null) ? null : String(m.processedMaterialIndex))
+    .filter(Boolean);
+  const unshippedLinesOf = (b) => {
+    const shipped = shippedIndexesOf(b);
+    // Rows shipped before per-line tracking have offtakerMaterials but no index on
+    // them; treat those batches as fully shipped so nothing is sent twice.
+    if (!shipped.length && (b.offtakerMaterials || []).length) return [];
+    return offtakerBatchLines(b).filter(l => !shipped.includes(String(l.index)));
+  };
+  const hasUnshippedLine = (b) => unshippedLinesOf(b).length > 0;
+  // Batches with at least one processed line still awaiting off-taker transport.
+  // Partially shipped batches stay listed: shipping the LVP line must not strand
+  // the PET line, which is what happened to DPK-QNR7HQ.
+  const offtakerBatches = visibleBatches.filter(b =>
+    (b.processedMaterials || []).length > 0 &&
+    ["processing", "offtaker_transport", "downstream_processing"].includes(b.status) &&
+    hasUnshippedLine(b));
   // Filter eligible batches to those with a material line matching the selected off-taker feedstock type's keyword
   // and/or the selected processing facility
   const offtakerSelectedKeywords = [...new Set((oft.materials || []).map(m => OFFTAKER_TO_FEEDSTOCK_KEYWORD[m.feedstockType]).filter(Boolean))];
@@ -3841,17 +3896,34 @@ export default function RezyMRVLive() {
     const facOk = !offtakerSelectedFacilities.length || offtakerSelectedFacilities.includes(l.processor);
     return kwOk && facOk;
   };
-  const offtakerBatchesFiltered = (offtakerSelectedKeywords.length || offtakerSelectedFacilities.length)
-    ? offtakerBatches.filter(b => offtakerBatchLines(b).some(offtakerLineMatchesFilter))
-    : offtakerBatches;
+  // One selectable option per unshipped processed line, not per batch. A batch that
+  // processed PET and LVP separately now offers two options, and shipping one leaves
+  // the other on the list.
+  const offtakerLinesAll = offtakerBatches.flatMap(b =>
+    unshippedLinesOf(b).map(line => ({ b, line, key: `${b.id}::${line.index}` })));
+  const offtakerLinesFiltered = (offtakerSelectedKeywords.length || offtakerSelectedFacilities.length)
+    ? offtakerLinesAll.filter(({ line }) => offtakerLineMatchesFilter(line))
+    : offtakerLinesAll;
   const OFFTAKER_BATCHES_PER_PAGE = 10;
-  const offtakerPageCount = Math.max(1, Math.ceil(offtakerBatchesFiltered.length / OFFTAKER_BATCHES_PER_PAGE));
-  const offtakerBatchesPaged = offtakerBatchesFiltered.slice(offtakerPage * OFFTAKER_BATCHES_PER_PAGE, (offtakerPage + 1) * OFFTAKER_BATCHES_PER_PAGE);
+  const offtakerPageCount = Math.max(1, Math.ceil(offtakerLinesFiltered.length / OFFTAKER_BATCHES_PER_PAGE));
+  const offtakerLinesPaged = offtakerLinesFiltered.slice(offtakerPage * OFFTAKER_BATCHES_PER_PAGE, (offtakerPage + 1) * OFFTAKER_BATCHES_PER_PAGE);
+  const offtakerSelectedLines = (oft.selectedLines || [])
+    .map(sel => {
+      const b = batches.find(x => x.id === sel.batchRef);
+      return b ? { b, line: sel, key: `${sel.batchRef}::${sel.index}` } : null;
+    })
+    .filter(Boolean);
   useEffect(() => {
     if (offtakerPage > offtakerPageCount - 1) setOfftakerPage(0);
   }, [offtakerPageCount, offtakerPage]);
   // Batches delivered to off-takers, awaiting downstream processing
-  const downstreamBatches = visibleBatches.filter(b => b.status === "offtaker_transport");
+  // Any batch with material already delivered to an off-taker and no downstream
+  // record yet. Partially shipped batches stay at status "processing", so filtering
+  // on status alone would have hidden their delivered line from this stage.
+  const downstreamBatches = visibleBatches.filter(b =>
+    (b.offtakerMaterials || []).length > 0 &&
+    !b.downstreamProcessingEndDate &&
+    ["processing", "offtaker_transport"].includes(b.status));
   const entryOptions = [
     { mode: "collection", title: t("stageCollection"), desc: t("entryDescCollection"), color: C.orange, icon: "🗑️" },
     { mode: "transport", title: t("stageTransport"), desc: t("entryDescTransport"), color: C.blue, icon: "🚚" },
@@ -4214,7 +4286,7 @@ export default function RezyMRVLive() {
     setTrnGeo({ lat: "", lng: "" });
     setPrc({ processor: PROCESSING_FACILITIES[0], processorOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setPrcGeo({ lat: "", lng: "" });
-    setOft({ selectedBatchIds: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
+    setOft({ selectedLines: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
     setOftGeo({ lat: "", lng: "" });
     setDsp({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setDspGeo({ lat: "", lng: "" });
@@ -4787,11 +4859,17 @@ export default function RezyMRVLive() {
 
   async function submitOfftakerTransport() {
     const capturedAt = nowISO();
-    const selectedIds = oft.selectedBatchIds || [];
-    const selectedBatches = selectedIds.map(id => batches.find(b => b.id === id)).filter(Boolean);
+    // Selection is per processed line now. Group the picked lines by their batch so
+    // one manifest can still carry several lines, possibly from the same batch.
+    const selectedLines = oft.selectedLines || [];
+    const linesByBatchRef = selectedLines.reduce((acc, sel) => {
+      (acc[sel.batchRef] ||= []).push(sel);
+      return acc;
+    }, {});
+    const selectedBatches = Object.keys(linesByBatchRef).map(id => batches.find(b => b.id === id)).filter(Boolean);
     const transportRef = selectedBatches.length > 0 ? (oft.transportRef || generatedManifestRef(selectedBatches[0].batchId, capturedAt)) : (directMeta.manifestRef || generatedManifestRef(directBatchId(), capturedAt));
     if (!requireFields([
-      { ok: selectedBatches.length > 0 ? true : Boolean(directBatchId()), label: "Batch ID" },
+      { ok: selectedLines.length > 0 ? true : Boolean(directBatchId()), label: "Batch ID" },
       { ok: (oft.materials || []).every(m => m.feedstockType && Number(m.weightKg) > 0), label: "Materials" },
       { ok: Boolean(transportRef), label: "Transport Manifest Ref." },
       { ok: Boolean(oft.plateNo), label: "Material Plate No." },
@@ -4830,27 +4908,58 @@ export default function RezyMRVLive() {
       return;
     }
 
-    const selectedIdSet = new Set(selectedIds);
+    // Each shipped line is appended to offtakerMaterials carrying the processed line
+    // index it came from, so the remaining lines stay selectable. The batch only
+    // leaves the off-taker queue once every processed line has been shipped.
+    const buildOfftakerUpdate = (b) => {
+      const picked = linesByBatchRef[b.id] || [];
+      const existing = b.offtakerMaterials || [];
+      const alreadyShipped = new Set(
+        existing.map(m => (m.processedMaterialIndex == null ? null : String(m.processedMaterialIndex))).filter(Boolean),
+      );
+      const added = picked
+        .filter(sel => !alreadyShipped.has(String(sel.index)))
+        .map(sel => ({
+          processedMaterialIndex: String(sel.index),
+          feedstockType: sel.feedstockType,
+          weightKg: sel.weightKg,
+          processor: sel.processor,
+        }));
+      const merged = [...existing, ...added];
+      const shippedNow = new Set(merged.map(m => String(m.processedMaterialIndex)).filter(Boolean));
+      const allLinesShipped = offtakerBatchLines(b).every(l => shippedNow.has(String(l.index)));
+      return {
+        offtakerMaterials: merged,
+        offtakerTransportRef: transportRef,
+        offtakerTransportDate: capturedAt,
+        offtakerPlateNo: oft.plateNo,
+        offtakerDeliveryPhotoDataUrl: oft.photoDataUrl,
+        // Lines still at the hub keep the batch in "processing" so it stays in the
+        // off-taker picker; only a fully shipped batch advances.
+        status: allLinesShipped ? "offtaker_transport" : b.status,
+      };
+    };
+
+    const selectedIdSet = new Set(Object.keys(linesByBatchRef));
     mutateBatches(prev => prev.map(b => selectedIdSet.has(b.id) ? {
       ...b,
-      status: "offtaker_transport",
+      ...buildOfftakerUpdate(b),
       reviewStatus: "pending",
       reviewStage: "Offtaker Transport",
       reviewActor: null,
       reviewAt: null,
       inputterIp: mergeInputterField(b.inputterIp, "offtaker_transport", clientMeta.inputterIp),
       inputterDevice: mergeInputterField(b.inputterDevice, "offtaker_transport", clientMeta.inputterDevice),
-      ...offtakerFields,
       sigOfftakerTransport: sigOft,
       activities: [...(b.activities || []), activity],
     } : b));
     selectedBatches.forEach(updo => {
       const inputterIp = mergeInputterField(updo.inputterIp, "offtaker_transport", clientMeta.inputterIp);
       const inputterDevice = mergeInputterField(updo.inputterDevice, "offtaker_transport", clientMeta.inputterDevice);
-      doSync({ ...updo, status: "offtaker_transport", reviewStatus: "pending", reviewStage: "Offtaker Transport", reviewActor: null, reviewAt: null, inputterIp, inputterDevice, ...offtakerFields, sigOfftakerTransport: sigOft, activities: [...(updo.activities || []), activity] }, activity);
+      doSync({ ...updo, ...buildOfftakerUpdate(updo), reviewStatus: "pending", reviewStage: "Offtaker Transport", reviewActor: null, reviewAt: null, inputterIp, inputterDevice, sigOfftakerTransport: sigOft, activities: [...(updo.activities || []), activity] }, activity);
     });
     resetNewBatchForm();
-    showToast(`Offtaker Transport documented for ${selectedBatches.length} batch(es). Ready for next batch.`);
+    showToast(`Offtaker Transport documented for ${selectedLines.length} material line(s). Ready for next batch.`);
   }
 
   async function submitDownstreamProcessing() {
@@ -4989,7 +5098,7 @@ export default function RezyMRVLive() {
     setTrnGeo({ lat: "", lng: "" });
     setPrc({ processor: PROCESSING_FACILITIES[0], processorOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setPrcGeo({ lat: "", lng: "" });
-    setOft({ selectedBatchIds: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
+    setOft({ selectedLines: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
     setOftGeo({ lat: "", lng: "" });
     setDsp({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setDspGeo({ lat: "", lng: "" });
@@ -5947,33 +6056,27 @@ export default function RezyMRVLive() {
                     </div>
                     <div style={{ marginBottom: 13 }}>
                       <Lbl>{t("batchesAvailableOfftaker")}</Lbl>
-                      {offtakerBatchesFiltered.length > 0 ? (
+                      {offtakerLinesFiltered.length > 0 ? (
                         <>
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                            {offtakerBatchesPaged.map(b => {
-                              const checked = (oft.selectedBatchIds || []).includes(b.id);
-                              const allLines = offtakerBatchLines(b);
-                              const lines = (offtakerSelectedKeywords.length || offtakerSelectedFacilities.length)
-                                ? allLines.filter(offtakerLineMatchesFilter)
-                                : allLines;
+                            {offtakerLinesPaged.map(({ b, line, key }) => {
+                              const checked = (oft.selectedLines || []).some(s => `${s.batchRef}::${s.index}` === key);
                               return (
-                                <label key={b.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: `1px solid ${checked ? C.forest : C.creamDark}`, background: checked ? C.creamMid : C.cardBg, cursor: checked ? "default" : "pointer", opacity: checked ? 0.75 : 1 }}>
+                                <label key={key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: `1px solid ${checked ? C.forest : C.creamDark}`, background: checked ? C.creamMid : C.cardBg, cursor: checked ? "default" : "pointer", opacity: checked ? 0.75 : 1 }}>
                                   <input
                                     type="checkbox"
                                     checked={checked}
                                     disabled={checked}
                                     onChange={() => {
                                       if (checked) return;
-                                      setOft(p => ({ ...p, selectedBatchIds: [...(p.selectedBatchIds || []), b.id] }));
+                                      setOft(p => ({ ...p, selectedLines: [...(p.selectedLines || []), { batchRef: b.id, index: String(line.index), feedstockType: line.feedstockType, weightKg: line.weightKg, processor: line.processor }] }));
                                     }}
                                     style={{ width: 20, height: 20, accentColor: C.forest, flexShrink: 0 }}
                                   />
                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: C.charcoal, fontFamily: "'DM Mono', monospace" }}>{b.batchId}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: C.charcoal, fontFamily: "'DM Mono', monospace" }}>{b.batchId} · M{line.index}</div>
                                     <div style={{ fontSize: 11, color: C.muted }}>{fmtDate(b.collectionDate)} · {b.collectorId}</div>
-                                    {lines.map((l, i) => (
-                                      <div key={i} style={{ fontSize: 11, color: C.muted }}>{l.feedstockType} · {Number(l.weightKg || 0).toLocaleString()} kg{l.processor ? ` · ${l.processor}` : ""}</div>
-                                    ))}
+                                    <div style={{ fontSize: 11, color: C.muted }}>{line.feedstockType} · {Number(line.weightKg || 0).toLocaleString()} kg{line.processor ? ` · ${line.processor}` : ""}</div>
                                   </div>
                                   {checked && <span style={{ fontSize: 11, fontWeight: 800, color: C.forest, flexShrink: 0 }}>{t("addedLabel")}</span>}
                                 </label>
@@ -5994,48 +6097,28 @@ export default function RezyMRVLive() {
                         </div>
                       )}
                     </div>
-                    {(oft.selectedBatchIds || []).length > 0 && (
+                    {offtakerSelectedLines.length > 0 && (
                       <div style={{ background: C.creamMid, borderRadius: 10, padding: "11px 15px", marginBottom: 16, fontSize: 13 }}>
-                        <div style={{ fontWeight: 800, color: C.forest, marginBottom: 6 }}>Selected for this Transport ({oft.selectedBatchIds.length})</div>
+                        <div style={{ fontWeight: 800, color: C.forest, marginBottom: 6 }}>{t("selectedForTransport")} ({offtakerSelectedLines.length})</div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          {oft.selectedBatchIds.map(id => {
-                            const b = batches.find(x => x.id === id);
-                            if (!b) return null;
-                            const allLines = offtakerBatchLines(b);
-                            const matchedLines = (offtakerSelectedKeywords.length || offtakerSelectedFacilities.length)
-                              ? allLines.filter(offtakerLineMatchesFilter)
-                              : allLines;
-                            const linesToShow = matchedLines.length ? matchedLines : allLines;
-                            const lineWeight = linesToShow.reduce((s, l) => s + Number(l.weightKg || 0), 0);
-                            const lineLabel = [...new Set(linesToShow.map(l => l.feedstockType))].join(", ");
-                            return (
-                              <div key={id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                                <span style={{ fontFamily: "'DM Mono', monospace", color: C.forest, fontWeight: 700 }}>{b.batchId}</span>
-                                <span style={{ flex: 1, textAlign: isMobile ? "left" : "right" }}>{lineLabel} · {lineWeight.toLocaleString()} kg</span>
-                                <Btn small onClick={() => setOft(p => ({ ...p, selectedBatchIds: (p.selectedBatchIds || []).filter(x => x !== id) }))} variant="ghost">{t("remove")}</Btn>
-                              </div>
-                            );
-                          })}
+                          {offtakerSelectedLines.map(({ b, line, key }) => (
+                            <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <span style={{ fontFamily: "'DM Mono', monospace", color: C.forest, fontWeight: 700 }}>{b.batchId} · M{line.index}</span>
+                              <span style={{ flex: 1, textAlign: isMobile ? "left" : "right" }}>{line.feedstockType} · {Number(line.weightKg || 0).toLocaleString()} kg</span>
+                              <Btn small onClick={() => setOft(p => ({ ...p, selectedLines: (p.selectedLines || []).filter(s => `${s.batchRef}::${s.index}` !== key) }))} variant="ghost">{t("remove")}</Btn>
+                            </div>
+                          ))}
                         </div>
                         <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.creamDark}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span style={{ fontWeight: 800, color: C.forest }}>{t("totalSelectedWeight")}</span>
                           <span style={{ fontSize: 13, fontWeight: 800, color: C.forest, fontFamily: "'DM Mono', monospace" }}>
-                            {oft.selectedBatchIds.reduce((sum, id) => {
-                              const b = batches.find(x => x.id === id);
-                              if (!b) return sum;
-                              const allLines = offtakerBatchLines(b);
-                              const matchedLines = (offtakerSelectedKeywords.length || offtakerSelectedFacilities.length)
-                                ? allLines.filter(offtakerLineMatchesFilter)
-                                : allLines;
-                              const linesToShow = matchedLines.length ? matchedLines : allLines;
-                              return sum + linesToShow.reduce((s, l) => s + Number(l.weightKg || 0), 0);
-                            }, 0).toLocaleString()} kg
+                            {offtakerSelectedLines.reduce((sum, { line }) => sum + Number(line.weightKg || 0), 0).toLocaleString()} kg
                           </span>
                         </div>
                       </div>
                     )}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
-                      <Inp label={t("transportRef")} value={(oft.selectedBatchIds || []).length > 0 ? (oft.transportRef || generatedManifestRef(batches.find(b => b.id === oft.selectedBatchIds[0])?.batchId, clockNow)) : ""} onChange={() => {}} disabled />
+                      <Inp label={t("transportRef")} value={offtakerSelectedLines.length > 0 ? (oft.transportRef || generatedManifestRef(offtakerSelectedLines[0].b.batchId, clockNow)) : ""} onChange={() => {}} disabled />
                       <Inp label={t("transportTimestamp")} value={jakartaNowLabel(clockNow)} onChange={() => {}} disabled />
                       <Sel label={t("materialPlateNo")} value={oft.plateNo} onChange={v => setOft(p=>({...p,plateNo:v}))} options={OFFTAKER_PLATE_NUMBERS} required />
                       {SHOW_MAP_PICKER && <MapPicker value={oftGeo} onChange={setOftGeo} lang={lang} />}
