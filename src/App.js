@@ -294,6 +294,17 @@ const TRANSLATIONS = {
     roleOfftakerTransportDesc: "Transport to off-takers input only",
     roleDownstreamProcessing: "Operator Downstream Processing",
     roleDownstreamProcessingDesc: "Downstream processing input only",
+    // Off-taker transport + downstream processing pages
+    downstreamFacility: "Downstream Facility",
+    sigDownstreamProcessor: "Downstream Processor Signature",
+    sigOfftakerTransport: "Off-taker Transport Signature",
+    confirmOfftakerTransport: "Confirm Off-taker Transport →",
+    confirmDownstreamProcessing: "Confirm Downstream Processing →",
+    addMaterial: "Add Material",
+    addedLabel: "Added ✓",
+    totalSelectedWeight: "Total Selected Weight",
+    egPrefix: "e.g.",
+    rejectionPlaceholderShort: "e.g. Contamination detected, weighing equipment calibration expired…",
     // Misc
     remove: "Remove", go: "Go", out: "Out",
     hubDepok: "Hub Depok-01",
@@ -565,6 +576,17 @@ const TRANSLATIONS = {
     roleOfftakerTransportDesc: "Input transport ke off-taker saja",
     roleDownstreamProcessing: "Operator Pemrosesan Hilir",
     roleDownstreamProcessingDesc: "Input pemrosesan hilir saja",
+    // Off-taker transport + downstream processing pages
+    downstreamFacility: "Fasilitas Hilir",
+    sigDownstreamProcessor: "Tanda Tangan Pemroses Hilir",
+    sigOfftakerTransport: "Tanda Tangan Angkutan Off-taker",
+    confirmOfftakerTransport: "Konfirmasi Transport ke Off-taker →",
+    confirmDownstreamProcessing: "Konfirmasi Pemrosesan Hilir →",
+    addMaterial: "Tambah Material",
+    addedLabel: "Ditambahkan ✓",
+    totalSelectedWeight: "Total Berat Terpilih",
+    egPrefix: "mis.",
+    rejectionPlaceholderShort: "mis. Kontaminasi terdeteksi, kalibrasi alat timbang kedaluwarsa…",
     // Misc
     remove: "Hapus", go: "Cari", out: "Keluar",
     hubDepok: "Hub Depok-01",
@@ -2905,7 +2927,7 @@ function RejectModal({ onConfirm, onCancel, lang = "en" }) {
         <div style={{ fontSize: 16, fontWeight: 800, color: C.red, marginBottom: 12 }}>Reject Batch</div>
         <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>Provide a reason. This will be logged and visible to the hub operator.</div>
         <Lbl>Rejection Reason</Lbl>
-        <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="e.g. Contamination detected, weighing equipment calibration expired…" style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${C.creamDark}`, background: C.white, fontSize: 13, color: C.charcoal, outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
+        <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder={t("rejectionPlaceholderShort")} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${C.creamDark}`, background: C.white, fontSize: 13, color: C.charcoal, outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
           <Btn onClick={() => reason.trim() && onConfirm(reason)} disabled={!reason.trim()} variant="danger">{t("confirmReject")}</Btn>
           <Btn onClick={onCancel} variant="ghost">{t("cancel")}</Btn>
@@ -5507,7 +5529,7 @@ export default function RezyMRVLive() {
                           ))}
                         </div>
                         <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <Btn small onClick={() => setCol(p => ({ ...p, materials: [...(p.materials || []), { feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }] }))} variant="secondary">Add Material</Btn>
+                          <Btn small onClick={() => setCol(p => ({ ...p, materials: [...(p.materials || []), { feedstockType: FEEDSTOCK_TYPES[0], weightKg: "" }] }))} variant="secondary">{t("addMaterial")}</Btn>
                           <span style={{ fontSize: 12, fontWeight: 800, color: C.forest, fontFamily: "'DM Mono', monospace" }}>Total {materialTotalKg(col.materials).toLocaleString()} kg</span>
                         </div>
                       </div>
@@ -5568,7 +5590,7 @@ export default function RezyMRVLive() {
                       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
                         <Inp label={t("referenceBatchId")} value={directMeta.batchId} onChange={() => {}} disabled />
                         <Sel label={t("feedstockType")} value={directMeta.feedstockType} onChange={v => setDirectMeta(p => ({ ...p, feedstockType: v }))} options={FEEDSTOCK_TYPES} required />
-                        <Inp label={t("grossWeight")} type="number" value={directMeta.weightKg} onChange={v => setDirectMeta(p => ({ ...p, weightKg: v }))} placeholder="e.g. 1500" required />
+                        <Inp label={t("grossWeight")} type="number" value={directMeta.weightKg} onChange={v => setDirectMeta(p => ({ ...p, weightKg: v }))} placeholder={`${t("egPrefix")} 1500`} required />
                         <SearchSel label={t("collector")} value={directMeta.collectorId} onChange={v => setDirectMeta(p => ({ ...p, collectorId: v }))} options={COLLECTORS} required />
                       </div>
                     )}
@@ -5616,7 +5638,7 @@ export default function RezyMRVLive() {
                       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
                         <Inp label={t("referenceBatchId")} value={directMeta.batchId} onChange={() => {}} disabled />
                         <Sel label={t("feedstockType")} value={directMeta.feedstockType} onChange={v => setDirectMeta(p => ({ ...p, feedstockType: v }))} options={FEEDSTOCK_TYPES} required />
-                        <Inp label={t("grossWeight")} type="number" value={directMeta.weightKg} onChange={v => setDirectMeta(p => ({ ...p, weightKg: v }))} placeholder="e.g. 1500" required />
+                        <Inp label={t("grossWeight")} type="number" value={directMeta.weightKg} onChange={v => setDirectMeta(p => ({ ...p, weightKg: v }))} placeholder={`${t("egPrefix")} 1500`} required />
                         <SearchSel label={t("collector")} value={directMeta.collectorId} onChange={v => setDirectMeta(p => ({ ...p, collectorId: v }))} options={COLLECTORS} required />
                       </div>
                     )}
@@ -5653,7 +5675,7 @@ export default function RezyMRVLive() {
                         <>
                           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 13, marginBottom: 13 }}>
                             <Inp label={`${t("acceptedWeight")} (auto)`} type="number" value={acceptedKgAuto} onChange={() => {}} disabled />
-                            <Inp label={t("rejectedWeight")} type="number" value={prc.rejectedWeightKg} onChange={v => setPrc(p=>({...p,rejectedWeightKg:v}))} placeholder="e.g. 50" />
+                            <Inp label={t("rejectedWeight")} type="number" value={prc.rejectedWeightKg} onChange={v => setPrc(p=>({...p,rejectedWeightKg:v}))} placeholder={`${t("egPrefix")} 50`} />
                           </div>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
                             <div>
@@ -5727,7 +5749,7 @@ export default function RezyMRVLive() {
                         ))}
                       </div>
                       <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <Btn small onClick={() => setOft(p => ({ ...p, materials: [...(p.materials || []), { feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }] }))} variant="secondary">Add Material</Btn>
+                        <Btn small onClick={() => setOft(p => ({ ...p, materials: [...(p.materials || []), { feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }] }))} variant="secondary">{t("addMaterial")}</Btn>
                         <span style={{ fontSize: 12, fontWeight: 800, color: C.forest, fontFamily: "'DM Mono', monospace" }}>Total {materialTotalKg(oft.materials).toLocaleString()} kg</span>
                       </div>
                     </div>
@@ -5761,7 +5783,7 @@ export default function RezyMRVLive() {
                                       <div key={i} style={{ fontSize: 11, color: C.muted }}>{l.feedstockType} · {Number(l.weightKg || 0).toLocaleString()} kg{l.processor ? ` · ${l.processor}` : ""}</div>
                                     ))}
                                   </div>
-                                  {checked && <span style={{ fontSize: 11, fontWeight: 800, color: C.forest, flexShrink: 0 }}>Added ✓</span>}
+                                  {checked && <span style={{ fontSize: 11, fontWeight: 800, color: C.forest, flexShrink: 0 }}>{t("addedLabel")}</span>}
                                 </label>
                               );
                             })}
@@ -5804,7 +5826,7 @@ export default function RezyMRVLive() {
                           })}
                         </div>
                         <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.creamDark}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontWeight: 800, color: C.forest }}>Total Selected Weight</span>
+                          <span style={{ fontWeight: 800, color: C.forest }}>{t("totalSelectedWeight")}</span>
                           <span style={{ fontSize: 13, fontWeight: 800, color: C.forest, fontFamily: "'DM Mono', monospace" }}>
                             {oft.selectedBatchIds.reduce((sum, id) => {
                               const b = batches.find(x => x.id === id);
@@ -5836,15 +5858,15 @@ export default function RezyMRVLive() {
                         </div>
                       )}
                     </div>
-                    <SignaturePad label="Off-taker Transport Signature" value={sigOft} onChange={setSigOft} />
-                    <div style={{marginTop:12}}><Btn onClick={submitOfftakerTransport} variant="primary" disabled={!sigOft}>Confirm Off-taker Transport →</Btn></div>
+                    <SignaturePad label={t("sigOfftakerTransport")} value={sigOft} onChange={setSigOft} />
+                    <div style={{marginTop:12}}><Btn onClick={submitOfftakerTransport} variant="primary" disabled={!sigOft}>{t("confirmOfftakerTransport")}</Btn></div>
                   </div>
                 )}
 
                 {/* Stage 5 */}
                 {entryMode === "downstream_processing" && stage === 5 && (
                   <div>
-                    <SectionTitle>Downstream Processing</SectionTitle>
+                    <SectionTitle>{t("stageDownstreamProcessing")}</SectionTitle>
                     <div style={{ marginBottom: 13 }}>
                       {downstreamBatches.length > 0 ? (
                         <SearchSel
@@ -5861,7 +5883,7 @@ export default function RezyMRVLive() {
                       )}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
-                      <Sel label="Downstream Facility" value={dsp.facility} onChange={v => setDsp(p=>({...p,facility:v}))} options={DOWNSTREAM_FACILITIES} required />
+                      <Sel label={t("downstreamFacility")} value={dsp.facility} onChange={v => setDsp(p=>({...p,facility:v}))} options={DOWNSTREAM_FACILITIES} required />
                       {dsp.facility === "Other" && (
                         <Inp label={t("downstreamFacilityOther")} value={dsp.facilityOther} onChange={v => setDsp(p=>({...p,facilityOther:v}))} placeholder={t("enterFacilityName")} required />
                       )}
@@ -5869,7 +5891,7 @@ export default function RezyMRVLive() {
                         const dspMaterialsAvail = active?.offtakerMaterials || [];
                         return (
                           <Sel
-                            label="Material Processed"
+                            label={t("processedMaterial")}
                             value={dsp.processedMaterialIndex}
                             onChange={v => setDsp(p=>({...p,processedMaterialIndex:v}))}
                             options={[{ value: "", label: "Select material…" }, ...dspMaterialsAvail.map((m, i) => ({ value: String(i + 1), label: `M${i + 1} · ${m.feedstockType || "-"} · ${Number(m.weightKg) || 0} kg` }))]}
@@ -5882,11 +5904,11 @@ export default function RezyMRVLive() {
                       {SHOW_MAP_PICKER && <MapPicker value={dspGeo} onChange={setDspGeo} lang={lang} />}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 13, marginBottom: 13 }}>
-                      <Inp label={t("acceptedWeight")} type="number" value={dsp.acceptedWeightKg} onChange={v => setDsp(p=>({...p,acceptedWeightKg:v}))} placeholder="e.g. 1200" />
-                      <Inp label={t("rejectedWeight")} type="number" value={dsp.rejectedWeightKg} onChange={v => setDsp(p=>({...p,rejectedWeightKg:v}))} placeholder="e.g. 50" />
+                      <Inp label={t("acceptedWeight")} type="number" value={dsp.acceptedWeightKg} onChange={v => setDsp(p=>({...p,acceptedWeightKg:v}))} placeholder={`${t("egPrefix")} 1200`} />
+                      <Inp label={t("rejectedWeight")} type="number" value={dsp.rejectedWeightKg} onChange={v => setDsp(p=>({...p,rejectedWeightKg:v}))} placeholder={`${t("egPrefix")} 50`} />
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
-                      <Inp label={t("contaminationVolume")} type="number" value={dsp.contaminationKg} onChange={v => setDsp(p=>({...p,contaminationKg:v}))} placeholder="e.g. 15" />
+                      <Inp label={t("contaminationVolume")} type="number" value={dsp.contaminationKg} onChange={v => setDsp(p=>({...p,contaminationKg:v}))} placeholder={`${t("egPrefix")} 15`} />
                       <div>
                         <Lbl>{t("contaminationNote")}</Lbl>
                         <textarea value={dsp.contaminationNote} onChange={e => setDsp(p=>({...p,contaminationNote:e.target.value}))} rows={3} placeholder={t("contaminationNotePlaceholder")} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${C.creamDark}`, background: C.white, fontSize: 13, color: C.charcoal, outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
@@ -5916,13 +5938,8 @@ export default function RezyMRVLive() {
                         </div>
                       )}
                     </div>
-                    <SignaturePad label="Downstream Processor Signature" value={sigDsp} onChange={setSigDsp} />
-                    <div style={{marginTop:12}}><Btn onClick={submitDownstreamProcessing} variant="accent" disabled={!sigDsp}>Confirm Downstream Processing →</Btn></div>
-                    <div style={{ marginTop: 16, background: "#e8f5e9", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.forest, border: `1px solid #b2dfb2` }}>
-                      <strong>✓ Chain of Custody Complete (Operator Scope)</strong><br/>
-                      Collection → Collection to Hub Transport → Mid-Processing → Transport to Off-takers → Downstream Processing documented.<br/>
-                      <span style={{ color: C.muted, marginTop: 4, display: "block" }}>Verification and credit issuance will be executed externally by the VVB and PCX Solutions Registry.</span>
-                    </div>
+                    <SignaturePad label={t("sigDownstreamProcessor")} value={sigDsp} onChange={setSigDsp} />
+                    <div style={{marginTop:12}}><Btn onClick={submitDownstreamProcessing} variant="accent" disabled={!sigDsp}>{t("confirmDownstreamProcessing")}</Btn></div>
                   </div>
                 )}
               </Card>}
