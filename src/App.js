@@ -53,7 +53,7 @@ const TRANSLATIONS = {
     livePilot: "Live pilot · Signed in as",
     // Stages
     stageCollection: "Collection", stageTransport: "Collection to Hub Transport",
-    stageProcessing: "Mid-Processing", stageOfftakerTransport: "Transport to Off-takers",
+    stageProcessing: "Processing at Hub", stageOfftakerTransport: "Transport to Off-takers",
     stageDownstreamProcessing: "Downstream Processing",
     stageVerification: "Verification", stageCredit: "Credit",
     chainOfCustody: "Chain of Custody",
@@ -163,7 +163,7 @@ const TRANSLATIONS = {
     syncFailed: "📊 Sheets sync failed",
     // Status labels
     statusCollection: "Collection", statusTransport: "Collection to Hub Transport",
-    statusProcessing: "Mid-Processing", statusVerified: "Verified",
+    statusProcessing: "Processing at Hub", statusVerified: "Verified",
     statusCredited: "Credit Issued", statusRejected: "Rejected",
     statusOfftakerTransport: "Transport to Off-takers",
     statusDownstreamProcessing: "Downstream Processing",
@@ -225,7 +225,7 @@ const TRANSLATIONS = {
     showingLabel: "Showing",
     ofLabel: "of",
     // Custody + Settings tabs
-    custodySubtitle: "Verifiable material movement from collector to processing hub",
+    custodySubtitle: "Verifiable material movement from lapak to processing hub",
     inProgress: "In progress",
     searchLabel: "Search",
     batchLabelShort: "Batch",
@@ -337,7 +337,7 @@ const TRANSLATIONS = {
     livePilot: "Pilot langsung · Masuk sebagai",
     // Stages
     stageCollection: "Pengumpulan", stageTransport: "Transport Collection ke Hub",
-    stageProcessing: "Pemrosesan Antara", stageOfftakerTransport: "Transport ke Off-taker",
+    stageProcessing: "Pemrosesan di Hub", stageOfftakerTransport: "Transport ke Off-taker",
     stageDownstreamProcessing: "Pemrosesan Hilir",
     stageVerification: "Verifikasi", stageCredit: "Kredit",
     chainOfCustody: "Chain of Custody",
@@ -447,7 +447,7 @@ const TRANSLATIONS = {
     syncFailed: "📊 Sinkron Sheets gagal",
     // Status labels
     statusCollection: "Pengumpulan", statusTransport: "Transport Collection ke Hub",
-    statusProcessing: "Pemrosesan Antara", statusVerified: "Terverifikasi",
+    statusProcessing: "Pemrosesan di Hub", statusVerified: "Terverifikasi",
     statusCredited: "Kredit Diterbitkan", statusRejected: "Ditolak",
     statusOfftakerTransport: "Transport ke Off-taker",
     statusDownstreamProcessing: "Pemrosesan Hilir",
@@ -509,7 +509,7 @@ const TRANSLATIONS = {
     showingLabel: "Menampilkan",
     ofLabel: "dari",
     // Custody + Settings tabs
-    custodySubtitle: "Pergerakan material yang dapat diverifikasi dari pengepul ke hub pemrosesan",
+    custodySubtitle: "Pergerakan material yang dapat diverifikasi dari lapak ke hub pemrosesan",
     inProgress: "Sedang berjalan",
     searchLabel: "Cari",
     batchLabelShort: "Batch",
@@ -2852,7 +2852,7 @@ function CertModal({ record, onClose, lang = "en" }) {
             ["EPR Buyer", record.eprBuyer, false],
             ["VVB", record.vvb, false],
             ["VVB Audit Ref.", record.verifierRef, true],
-            ["Collector", record.collectorId, false],
+            ["Lapak Name", record.collectorId, false],
             ["Collection Date", fmtDate(record.collectionDate), false],
             ["PCC Issued At", fmtDateTime(record.issuedAt), false],
           ].map(([k, v, mono]) => <InfoRow key={k} label={k} value={v} mono={mono} />)}
@@ -3115,7 +3115,7 @@ function custodyStageRows(batch) {
       key: "collection", title: "Collection", icon: "⚖️", done: true,
       when: colAct?.ts || batch.collectionDate,
       lines: [
-        batch.collectorId && `Collector: ${maskName(batch.collectorId)}`,
+        batch.collectorId && `Lapak: ${maskName(batch.collectorId)}`,
         batch.weighingEquipId && `Scale: ${batch.weighingEquipId}`,
       ].filter(Boolean),
       accepted: findAcceptAfter(colAct?.ts)?.ts,
@@ -3356,7 +3356,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
 
         <div style={{ marginTop: 6, padding: "11px 18px", background: C.cream, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11.5, color: C.forestDark }}>
-            🛡 Every stage independently logged with timestamp, network address and device fingerprint — material movement from collector to processing hub is verifiable.
+            🛡 Every stage independently logged with timestamp, network address and device fingerprint — material movement from lapak to processing hub is verifiable.
           </span>
           <span style={{ marginLeft: "auto", fontSize: 10.5, color: C.muted, fontFamily: "'DM Mono', monospace" }}>mrv.rezycology.com</span>
         </div>
@@ -3750,7 +3750,7 @@ export default function RezyMRVLive() {
   const entryOptions = [
     { mode: "collection", title: "Collection", desc: "Record feedstock received at collection point.", color: C.orange, icon: "🗑️" },
     { mode: "transport", title: "Collection to Hub Transport", desc: "Record movement from collection point to hub.", color: C.blue, icon: "🚚" },
-    { mode: "processing", title: "Mid-Processing", desc: "Record mid-processing activity directly.", color: "#92600a", icon: "⚙️" },
+    { mode: "processing", title: "Processing at Hub", desc: "Record hub processing activity directly.", color: "#92600a", icon: "⚙️" },
     { mode: "offtaker_transport", title: "Transport to Off-takers", desc: "Record movement of processed material from hub to off-takers.", color: C.blue, icon: "🚛" },
     { mode: "downstream_processing", title: "Downstream Processing", desc: "Record downstream processing activity at the off-taker facility.", color: "#92600a", icon: "🏭" },
   ].filter(opt => !roleObj?.allowedEntryModes || roleObj.allowedEntryModes.includes(opt.mode));
@@ -5074,7 +5074,7 @@ export default function RezyMRVLive() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px", marginBottom: 16 }}>
               {[
                 [t("weight"), `${Number(detailView.weightKg).toLocaleString()} kg`],
-	                ["Collector", detailView.collectorId],
+	                [t("collector"), detailView.collectorId],
 	                ["Weighing Equip.", detailView.weighingEquipId],
 	                [t("pickupVehicleLabel"), detailView.pickupVehicle],
 	                ["Collection Date", fmtDateTime(detailView.collectionDate)],
@@ -5580,7 +5580,7 @@ export default function RezyMRVLive() {
                   <div>
                     <SectionTitle>{t("stageTransport")}</SectionTitle>
                     <div style={{ marginBottom: 13 }}>
-                      {pickupBatches.length > 0 ? (
+                      {pickupBatches.length > 0 && (
                         <SearchSel
                           label={t("batchAvailableForPickup")}
                           value={active?.batchId || ""}
@@ -5588,10 +5588,6 @@ export default function RezyMRVLive() {
                           options={pickupBatches.map(b => ({ value: b.batchId, label: `${b.batchId} · ${fmtDate(b.collectionDate)} · ${b.collectorId}` }))}
                           placeholder={t("searchBatchId")}
                         />
-                      ) : (
-                        <div style={{ background: "#fff8e1", border: `1px solid #f0d58a`, borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#7a5800" }}>
-                          No collected batches awaiting pickup for D-day / D-1.
-                        </div>
                       )}
                     </div>
                     {active ? (
@@ -6074,7 +6070,7 @@ export default function RezyMRVLive() {
 	                      <div style={{ alignSelf: isMobile ? "flex-start" : "auto" }}><Badge status={b.status} lang={lang} /></div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3,1fr)", gap: isMobile ? "10px 14px" : "8px 20px", marginBottom: 14 }}>
-                      {[["Hub","Hub Depok-01"],["Collector",b.collectorId],["Collection Date",fmtDateTime(b.collectionDate)],[t("transportRefShort"),b.transportRef],["Processor",b.processor],["EoW Process",b.eowProcess]].map(([k,v])=>(
+                      {[["Hub","Hub Depok-01"],[t("collector"),b.collectorId],["Collection Date",fmtDateTime(b.collectionDate)],[t("transportRefShort"),b.transportRef],["Processor",b.processor],["EoW Process",b.eowProcess]].map(([k,v])=>(
                         <InfoRow key={k} label={k} value={v} />
                       ))}
                     </div>
