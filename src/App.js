@@ -50,7 +50,7 @@ const TRANSLATIONS = {
     totalBatches: "Total Batches", awaitingVerification: "Awaiting Verification",
     chainStatus: "Chain Status · End-to-End", recentBatches: "Recent Batches",
     noBatchesYet: "No batches yet.", goToNewBatch: "Go to New Batch to log your first collection.",
-    livePilot: "Live pilot · Signed in as",
+    livePilot: "Signed in as",
     // Stages
     stageCollection: "Collection", stageTransport: "Collection to Hub Transport",
     stageProcessing: "Processing at Hub", stageOfftakerTransport: "Transport to Off-takers",
@@ -349,7 +349,7 @@ const TRANSLATIONS = {
     totalBatches: "Total Batch", awaitingVerification: "Menunggu Verifikasi",
     chainStatus: "Status Rantai · End-to-End", recentBatches: "Batch Terbaru",
     noBatchesYet: "Belum ada batch.", goToNewBatch: "Buka Batch Baru untuk mencatat koleksi pertama.",
-    livePilot: "Pilot langsung · Masuk sebagai",
+    livePilot: "Masuk sebagai",
     // Stages
     stageCollection: "Pengumpulan", stageTransport: "Transport Collection ke Hub",
     stageProcessing: "Pemrosesan di Hub", stageOfftakerTransport: "Transport ke Off-taker",
@@ -2734,9 +2734,14 @@ function Badge({ status, lang = "en" }) {
   const s = m[status] || m.collection;
   return (
     <span style={{
-      background: s.bg, color: s.color, padding: "3px 10px", borderRadius: 20,
-      fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+      background: s.bg, color: s.color, padding: "3px 10px", borderRadius: 12,
+      fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
       fontFamily: "'DM Mono', monospace", textTransform: "uppercase",
+      // Labels like "Transport Collection ke Hub" are far wider than the
+      // Stage column; as a bare inline span the pill overflowed and was
+      // clipped by the table wrapper. Wrap inside the cell instead.
+      display: "inline-block", maxWidth: "100%", whiteSpace: "normal",
+      overflowWrap: "anywhere", lineHeight: 1.35, textAlign: "center",
     }}>{t(s.key)}</span>
   );
 }
@@ -6063,11 +6068,11 @@ export default function RezyMRVLive() {
 	                  <table style={{ width: "100%", minWidth: isMobile ? 720 : undefined, borderCollapse: "collapse", tableLayout: "fixed" }}>
 	                    <colgroup>
 		                      <col style={{ width: "12%" }} />
-		                      <col style={{ width: "11%" }} />
-		                      <col style={{ width: "16%" }} />
+		                      <col style={{ width: "15%" }} />
+		                      <col style={{ width: "19%" }} />
 		                      <col style={{ width: "9%" }} />
+		                      <col style={{ width: "10%" }} />
 		                      <col style={{ width: "12%" }} />
-		                      <col style={{ width: "17%" }} />
 		                      <col style={{ width: "23%" }} />
 	                    </colgroup>
 	                    <thead>
@@ -6086,7 +6091,7 @@ export default function RezyMRVLive() {
 	                            <td onClick={() => setDetailView(detailForMaterial(b, rowMaterial.material, rowMaterial.index))} style={{ padding: "10px", fontFamily: "'DM Mono', monospace", fontSize: 10, color: C.forest, fontWeight: 700, lineHeight: 1.25, overflowWrap: "anywhere", cursor: "pointer" }}>{b.batchId}</td>
 	                            <td style={{ padding: "10px" }}><Badge status={b.status} lang={lang} /></td>
 	                            <td style={{ padding: "10px", fontSize: 11, lineHeight: 1.25, overflowWrap: "anywhere" }}>{rowMaterial.feedstockType}{rowMaterial.index ? ` (M${rowMaterial.index})` : ""}</td>
-	                            <td style={{ padding: "10px", fontSize: 11, fontWeight: 800 }}>{Number(rowMaterial.weightKg || 0).toLocaleString()} kg</td>
+	                            <td style={{ padding: "10px", fontSize: 11, fontWeight: 800, lineHeight: 1.25, overflowWrap: "anywhere" }}>{Number(rowMaterial.weightKg || 0).toLocaleString()} kg</td>
 	                            <td style={{ padding: "10px", fontSize: 10, color: C.muted, overflowWrap: "anywhere" }}>{latestActivity.actor || b.loggedBy || "-"}</td>
 	                            <td style={{ padding: "10px", fontSize: 10, color: C.muted, lineHeight: 1.35 }}>{fmtDateTime(latestActivity.ts || b.createdAt)}</td>
 		                            <td style={{ padding: "10px" }}>
