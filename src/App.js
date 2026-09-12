@@ -55,6 +55,21 @@ const TRANSLATIONS = {
     stageCollection: "Collection", stageTransport: "Collection to Hub Transport",
     stageProcessing: "Processing at Hub", stageOfftakerTransport: "Transport to Off-takers",
     stageDownstreamProcessing: "Downstream Processing",
+    entryDescCollection: "Record feedstock received at collection point.",
+    entryDescTransport: "Record movement from collection point to hub.",
+    entryDescProcessing: "Record hub processing activity directly.",
+    entryDescOfftakerTransport: "Record movement of processed material from hub to off-takers.",
+    entryDescDownstream: "Record downstream processing activity at the off-taker facility.",
+    allFacilities: "All Facilities",
+    noBatchesAtProcessingFacility: "No batches delivered to the processing facility yet.",
+    noBatchesAtOfftakers: "No batches delivered to off-takers yet.",
+    selectPlaceholder: "Select…",
+    searchNamePlaceholder: "Search name…",
+    noMatches: "No matches",
+    digitalSignature: "Digital Signature",
+    clearSignature: "Clear",
+    signHere: "Sign here",
+    signedAt: "Signed",
     stageVerification: "Verification", stageCredit: "Credit",
     chainOfCustody: "Chain of Custody",
     // Stage 1
@@ -339,6 +354,21 @@ const TRANSLATIONS = {
     stageCollection: "Pengumpulan", stageTransport: "Transport Collection ke Hub",
     stageProcessing: "Pemrosesan di Hub", stageOfftakerTransport: "Transport ke Off-taker",
     stageDownstreamProcessing: "Pemrosesan Hilir",
+    entryDescCollection: "Catat bahan baku yang diterima di titik pengumpulan.",
+    entryDescTransport: "Catat perpindahan dari titik pengumpulan ke hub.",
+    entryDescProcessing: "Catat aktivitas pemrosesan di hub secara langsung.",
+    entryDescOfftakerTransport: "Catat perpindahan material terproses dari hub ke off-taker.",
+    entryDescDownstream: "Catat aktivitas pemrosesan hilir di fasilitas off-taker.",
+    allFacilities: "Semua Fasilitas",
+    noBatchesAtProcessingFacility: "Belum ada batch yang dikirim ke fasilitas pemrosesan.",
+    noBatchesAtOfftakers: "Belum ada batch yang dikirim ke off-taker.",
+    selectPlaceholder: "Pilih…",
+    searchNamePlaceholder: "Cari nama…",
+    noMatches: "Tidak ada hasil",
+    digitalSignature: "Tanda Tangan Digital",
+    clearSignature: "Hapus",
+    signHere: "Tanda tangan di sini",
+    signedAt: "Ditandatangani",
     stageVerification: "Verifikasi", stageCredit: "Kredit",
     chainOfCustody: "Chain of Custody",
     // Stage 1
@@ -2520,7 +2550,8 @@ function Sel({ label, value, onChange, options, required, disabled }) {
   );
 }
 
-function SearchSel({ label, value, onChange, options, required, disabled, placeholder = "Search name…" }) {
+function SearchSel({ label, value, onChange, options, required, disabled, placeholder, lang = "en" }) {
+  const t = useT(lang);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
@@ -2549,7 +2580,7 @@ function SearchSel({ label, value, onChange, options, required, disabled, placeh
           fontSize: 13, color: value ? C.charcoal : C.muted, fontFamily: "inherit",
           cursor: disabled ? "default" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
-        <span>{selected ? selected.label : "Select…"}</span>
+        <span>{selected ? selected.label : t("selectPlaceholder")}</span>
         <span style={{ fontSize: 10, color: C.forest }}>▼</span>
       </div>
       {open && !disabled && (
@@ -2560,14 +2591,14 @@ function SearchSel({ label, value, onChange, options, required, disabled, placeh
         }}>
           <input
             autoFocus type="text" value={query} onChange={e => setQuery(e.target.value)}
-            placeholder={placeholder}
+            placeholder={placeholder || t("searchNamePlaceholder")}
             style={{
               padding: "9px 12px", border: "none", borderBottom: `1.5px solid ${C.creamDark}`,
               fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box",
             }} />
           <div style={{ overflowY: "auto" }}>
             {filtered.length === 0 && (
-              <div style={{ padding: "10px 12px", fontSize: 12, color: C.muted }}>No matches</div>
+              <div style={{ padding: "10px 12px", fontSize: 12, color: C.muted }}>{t("noMatches")}</div>
             )}
             {filtered.map(o => (
               <div key={o.value} onClick={() => { onChange(o.value); setQuery(""); setOpen(false); }}
@@ -2610,7 +2641,8 @@ function Btn({ children, onClick, disabled, variant = "primary", small, full }) 
 }
 
 // ─── Signature Pad ────────────────────────────────────────────────────────────
-function SignaturePad({ label, value, onChange }) {
+function SignaturePad({ label, value, onChange, lang = "en" }) {
+  const t = useT(lang);
   const canvasRef = useRef(null);
   const drawing   = useRef(false);
   const [has, setHas] = useState(!!value);
@@ -2646,8 +2678,8 @@ function SignaturePad({ label, value, onChange }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <Lbl>{label || "Digital Signature"}</Lbl>
-        {has && <button onClick={clear} style={{ background: "none", border: "none", color: C.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Clear ↺</button>}
+        <Lbl>{label || t("digitalSignature")}</Lbl>
+        {has && <button onClick={clear} style={{ background: "none", border: "none", color: C.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("clearSignature")} ↺</button>}
       </div>
       <div style={{ border: `2px solid ${has ? C.forest : C.creamDark}`, borderRadius: 10, background: "#fff", position: "relative", transition: "border-color 0.2s" }}>
         <canvas ref={canvasRef} width={600} height={150}
@@ -2657,11 +2689,11 @@ function SignaturePad({ label, value, onChange }) {
         />
         {!has && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-            <span style={{ color: "#c8d8c8", fontSize: 13, fontWeight: 600 }}>✍ Sign here</span>
+            <span style={{ color: "#c8d8c8", fontSize: 13, fontWeight: 600 }}>✍ {t("signHere")}</span>
           </div>
         )}
       </div>
-      {has && <div style={{ fontSize: 11, color: C.forest, marginTop: 4, fontWeight: 600 }}>✓ Signed — {ts}</div>}
+      {has && <div style={{ fontSize: 11, color: C.forest, marginTop: 4, fontWeight: 600 }}>✓ {t("signedAt")} — {ts}</div>}
     </div>
   );
 }
@@ -3748,11 +3780,11 @@ export default function RezyMRVLive() {
   // Batches delivered to off-takers, awaiting downstream processing
   const downstreamBatches = visibleBatches.filter(b => b.status === "offtaker_transport");
   const entryOptions = [
-    { mode: "collection", title: "Collection", desc: "Record feedstock received at collection point.", color: C.orange, icon: "🗑️" },
-    { mode: "transport", title: "Collection to Hub Transport", desc: "Record movement from collection point to hub.", color: C.blue, icon: "🚚" },
-    { mode: "processing", title: "Processing at Hub", desc: "Record hub processing activity directly.", color: "#92600a", icon: "⚙️" },
-    { mode: "offtaker_transport", title: "Transport to Off-takers", desc: "Record movement of processed material from hub to off-takers.", color: C.blue, icon: "🚛" },
-    { mode: "downstream_processing", title: "Downstream Processing", desc: "Record downstream processing activity at the off-taker facility.", color: "#92600a", icon: "🏭" },
+    { mode: "collection", title: t("stageCollection"), desc: t("entryDescCollection"), color: C.orange, icon: "🗑️" },
+    { mode: "transport", title: t("stageTransport"), desc: t("entryDescTransport"), color: C.blue, icon: "🚚" },
+    { mode: "processing", title: t("stageProcessing"), desc: t("entryDescProcessing"), color: "#92600a", icon: "⚙️" },
+    { mode: "offtaker_transport", title: t("stageOfftakerTransport"), desc: t("entryDescOfftakerTransport"), color: C.blue, icon: "🚛" },
+    { mode: "downstream_processing", title: t("stageDownstreamProcessing"), desc: t("entryDescDownstream"), color: "#92600a", icon: "🏭" },
   ].filter(opt => !roleObj?.allowedEntryModes || roleObj.allowedEntryModes.includes(opt.mode));
 
   // ── Inject global styles ──────────────────────────────────────────────────
@@ -5545,7 +5577,7 @@ export default function RezyMRVLive() {
                           <span style={{ fontSize: 12, fontWeight: 800, color: C.forest, fontFamily: "'DM Mono', monospace" }}>Total {materialTotalKg(col.materials).toLocaleString()} kg</span>
                         </div>
                       </div>
-	                      <SearchSel label={t("collector")} value={col.collectorId} onChange={v => setCol(p=>({...p,collectorId:v}))} options={COLLECTORS} required />
+	                      <SearchSel label={t("collector")} value={col.collectorId} onChange={v => setCol(p=>({...p,collectorId:v}))} options={COLLECTORS} required lang={lang} />
 	                      <Sel label={t("weighingEquip")} value={col.weighingEquipId} onChange={v => setCol(p=>({...p,weighingEquipId:v}))} options={SCALES} required />
                       <Inp label={t("collectionTimestamp")} value={jakartaNowLabel(clockNow)} onChange={() => {}} disabled />
                       {SHOW_MAP_PICKER && <MapPicker value={colGeo} onChange={setColGeo} lang={lang} />}
@@ -5570,7 +5602,7 @@ export default function RezyMRVLive() {
                         {materialTotalKg(col.materials).toLocaleString()} kg = {kgToTonnes(materialTotalKg(col.materials)).toFixed(4)} MT
                       </div>
                     )}
-                    <SignaturePad label={t("sigCollector")} value={sigCol} onChange={setSigCol} />
+                    <SignaturePad label={t("sigCollector")} value={sigCol} onChange={setSigCol} lang={lang} />
                     <div style={{marginTop:12}}><Btn onClick={submitCollection} variant="primary" disabled={!sigCol}>{t("logCollection")}</Btn></div>
                   </div>
                 )}
@@ -5587,6 +5619,7 @@ export default function RezyMRVLive() {
                           onChange={v => { const b = pickupBatches.find(pb => pb.batchId === v); if (b) setActiveId(b.id); }}
                           options={pickupBatches.map(b => ({ value: b.batchId, label: `${b.batchId} · ${fmtDate(b.collectionDate)} · ${b.collectorId}` }))}
                           placeholder={t("searchBatchId")}
+                          lang={lang}
                         />
                       )}
                     </div>
@@ -5599,7 +5632,7 @@ export default function RezyMRVLive() {
                         <Inp label={t("referenceBatchId")} value={directMeta.batchId} onChange={() => {}} disabled />
                         <Sel label={t("feedstockType")} value={directMeta.feedstockType} onChange={v => setDirectMeta(p => ({ ...p, feedstockType: v }))} options={FEEDSTOCK_TYPES} required />
                         <Inp label={t("grossWeight")} type="number" value={directMeta.weightKg} onChange={v => setDirectMeta(p => ({ ...p, weightKg: v }))} placeholder={`${t("egPrefix")} 1500`} required />
-                        <SearchSel label={t("collector")} value={directMeta.collectorId} onChange={v => setDirectMeta(p => ({ ...p, collectorId: v }))} options={COLLECTORS} required />
+                        <SearchSel label={t("collector")} value={directMeta.collectorId} onChange={v => setDirectMeta(p => ({ ...p, collectorId: v }))} options={COLLECTORS} required lang={lang} />
                       </div>
                     )}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
@@ -5618,7 +5651,7 @@ export default function RezyMRVLive() {
                         </div>
                       )}
                     </div>
-                    <SignaturePad label={t("sigTransportOfficer")} value={sigTrn} onChange={setSigTrn} />
+                    <SignaturePad label={t("sigTransportOfficer")} value={sigTrn} onChange={setSigTrn} lang={lang} />
                     <div style={{marginTop:12}}><Btn onClick={submitTransport} variant="primary" disabled={!sigTrn}>{t("confirmTransport")}</Btn></div>
                   </div>
                 )}
@@ -5635,10 +5668,11 @@ export default function RezyMRVLive() {
                           onChange={v => { const b = processBatches.find(pb => pb.batchId === v); if (b) setActiveId(b.id); }}
                           options={processBatches.map(b => ({ value: b.batchId, label: `${b.batchId} · ${fmtDate(b.collectionDate)} · ${b.collectorId}` }))}
                           placeholder={t("searchBatchId")}
+                          lang={lang}
                         />
                       ) : (
                         <div style={{ background: "#fff8e1", border: `1px solid #f0d58a`, borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#7a5800" }}>
-                          No batches delivered to the processing facility yet.
+                          {t("noBatchesAtProcessingFacility")}
                         </div>
                       )}
                     </div>
@@ -5647,7 +5681,7 @@ export default function RezyMRVLive() {
                         <Inp label={t("referenceBatchId")} value={directMeta.batchId} onChange={() => {}} disabled />
                         <Sel label={t("feedstockType")} value={directMeta.feedstockType} onChange={v => setDirectMeta(p => ({ ...p, feedstockType: v }))} options={FEEDSTOCK_TYPES} required />
                         <Inp label={t("grossWeight")} type="number" value={directMeta.weightKg} onChange={v => setDirectMeta(p => ({ ...p, weightKg: v }))} placeholder={`${t("egPrefix")} 1500`} required />
-                        <SearchSel label={t("collector")} value={directMeta.collectorId} onChange={v => setDirectMeta(p => ({ ...p, collectorId: v }))} options={COLLECTORS} required />
+                        <SearchSel label={t("collector")} value={directMeta.collectorId} onChange={v => setDirectMeta(p => ({ ...p, collectorId: v }))} options={COLLECTORS} required lang={lang} />
                       </div>
                     )}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
@@ -5717,7 +5751,7 @@ export default function RezyMRVLive() {
                         </div>
                       )}
                     </div>
-                    <SignaturePad label={t("sigProcessor")} value={sigPrc} onChange={setSigPrc} />
+                    <SignaturePad label={t("sigProcessor")} value={sigPrc} onChange={setSigPrc} lang={lang} />
                     <div style={{marginTop:12}}><Btn onClick={submitProcessing} variant="accent" disabled={!sigPrc}>{t("confirmProcessing")}</Btn></div>
                   </div>
                 )}
@@ -5732,16 +5766,16 @@ export default function RezyMRVLive() {
                         {(oft.materials || []).map((m, idx) => (
                           <div key={idx} style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 8, alignItems: isMobile ? "stretch" : "end" }}>
                             <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-                              <Sel label={idx === 0 ? "Feedstock Type" : ""} value={m.feedstockType} onChange={v => setOft(p => {
+                              <Sel label={idx === 0 ? t("feedstockType") : ""} value={m.feedstockType} onChange={v => setOft(p => {
                                 const next = [...(p.materials || [])];
                                 next[idx] = { ...next[idx], feedstockType: v };
                                 return { ...p, materials: next };
                               })} options={OFFTAKER_FEEDSTOCK_TYPES} required />
-                              <Sel label={idx === 0 ? "Processing Facility" : ""} value={m.processor || ""} onChange={v => setOft(p => {
+                              <Sel label={idx === 0 ? t("processingFacility") : ""} value={m.processor || ""} onChange={v => setOft(p => {
                                 const next = [...(p.materials || [])];
                                 next[idx] = { ...next[idx], processor: v };
                                 return { ...p, materials: next };
-                              })} options={[{ value: "", label: "All Facilities" }, ...PROCESSING_FACILITIES.map(f => ({ value: f, label: f }))]} />
+                              })} options={[{ value: "", label: t("allFacilities") }, ...PROCESSING_FACILITIES.map(f => ({ value: f, label: f }))]} />
                             </div>
                             <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
                               <div style={{ flex: isMobile ? "1 1 auto" : "0 0 120px", minWidth: 0 }}>
@@ -5866,7 +5900,7 @@ export default function RezyMRVLive() {
                         </div>
                       )}
                     </div>
-                    <SignaturePad label={t("sigOfftakerTransport")} value={sigOft} onChange={setSigOft} />
+                    <SignaturePad label={t("sigOfftakerTransport")} value={sigOft} onChange={setSigOft} lang={lang} />
                     <div style={{marginTop:12}}><Btn onClick={submitOfftakerTransport} variant="primary" disabled={!sigOft}>{t("confirmOfftakerTransport")}</Btn></div>
                   </div>
                 )}
@@ -5883,10 +5917,11 @@ export default function RezyMRVLive() {
                           onChange={v => { const b = downstreamBatches.find(pb => pb.batchId === v); if (b) setActiveId(b.id); }}
                           options={downstreamBatches.map(b => ({ value: b.batchId, label: `${b.batchId} · ${fmtDate(b.collectionDate)} · ${b.collectorId}` }))}
                           placeholder={t("searchBatchId")}
+                          lang={lang}
                         />
                       ) : (
                         <div style={{ background: "#fff8e1", border: `1px solid #f0d58a`, borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#7a5800" }}>
-                          No batches delivered to off-takers yet.
+                          {t("noBatchesAtOfftakers")}
                         </div>
                       )}
                     </div>
@@ -5902,7 +5937,7 @@ export default function RezyMRVLive() {
                             label={t("processedMaterial")}
                             value={dsp.processedMaterialIndex}
                             onChange={v => setDsp(p=>({...p,processedMaterialIndex:v}))}
-                            options={[{ value: "", label: "Select material…" }, ...dspMaterialsAvail.map((m, i) => ({ value: String(i + 1), label: `M${i + 1} · ${m.feedstockType || "-"} · ${Number(m.weightKg) || 0} kg` }))]}
+                            options={[{ value: "", label: t("processedMaterialPlaceholder") }, ...dspMaterialsAvail.map((m, i) => ({ value: String(i + 1), label: `M${i + 1} · ${m.feedstockType || "-"} · ${Number(m.weightKg) || 0} kg` }))]}
                             required={dspMaterialsAvail.length > 1}
                           />
                         );
@@ -5946,7 +5981,7 @@ export default function RezyMRVLive() {
                         </div>
                       )}
                     </div>
-                    <SignaturePad label={t("sigDownstreamProcessor")} value={sigDsp} onChange={setSigDsp} />
+                    <SignaturePad label={t("sigDownstreamProcessor")} value={sigDsp} onChange={setSigDsp} lang={lang} />
                     <div style={{marginTop:12}}><Btn onClick={submitDownstreamProcessing} variant="accent" disabled={!sigDsp}>{t("confirmDownstreamProcessing")}</Btn></div>
                   </div>
                 )}
