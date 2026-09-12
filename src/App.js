@@ -255,7 +255,7 @@ const TRANSLATIONS = {
     showingLabel: "Showing",
     ofLabel: "of",
     // Custody + Settings tabs
-    custodySubtitle: "Verifiable material movement from lapak to processing hub",
+    custodySubtitle: "Verifiable material movement from lapak to downstream processing",
     inProgress: "In progress",
     searchLabel: "Search",
     batchLabelShort: "Batch",
@@ -569,7 +569,7 @@ const TRANSLATIONS = {
     showingLabel: "Menampilkan",
     ofLabel: "dari",
     // Custody + Settings tabs
-    custodySubtitle: "Pergerakan material yang dapat diverifikasi dari lapak ke hub pemrosesan",
+    custodySubtitle: "Pergerakan material yang dapat diverifikasi dari lapak ke pemrosesan hilir",
     inProgress: "Sedang berjalan",
     searchLabel: "Cari",
     batchLabelShort: "Batch",
@@ -3204,22 +3204,45 @@ function haversineDistanceKm(geoA, geoB) {
 // A batch is only through a downstream stage once EVERY processed line has been
 // handed on. Shipping one line (LVP) while another (PET) is still at the hub used
 // to mark the whole batch complete, which overstated the chain of custody.
+function offtakerLinesOf(batch) {
+  return (batch.processedMaterials && batch.processedMaterials.length)
+    ? batch.processedMaterials.map(m => ({ index: String(m.processedMaterialIndex || 1), feedstockType: m.processedFeedstockType, weightKg: m.acceptedWeightKg, processor: m.processor }))
+    : [{ index: "1", feedstockType: batch.processedFeedstockType || batch.feedstockType, weightKg: batch.acceptedWeightKg || batch.weightKg, processor: batch.processor }];
+}
 function processedLineIndexes(batch) {
   const pm = batch.processedMaterials || [];
   if (pm.length) return pm.map(m => String(m.processedMaterialIndex || 1));
   return batch.processedFeedstockType || batch.acceptedWeightKg ? ["1"] : [];
 }
+// Which processed lines have already gone to an off-taker.
+// Entries written before per-line tracking carry no processedMaterialIndex, so they
+// are reconciled against the processed lines by feedstock keyword. Anything still
+// unmatched consumes the next free line, which keeps the count of shipped lines
+// equal to the count of shipped entries: no double-shipping, and no line stranded
+// forever just because the record predates the index.
 function shippedLineIndexes(batch) {
-  return (batch.offtakerMaterials || [])
-    .map(m => (m.processedMaterialIndex == null ? null : String(m.processedMaterialIndex)))
-    .filter(Boolean);
+  const entries = batch.offtakerMaterials || [];
+  if (!entries.length) return [];
+  const lines = offtakerLinesOf(batch);
+  const shipped = new Set();
+  const legacy = [];
+  for (const e of entries) {
+    if (e.processedMaterialIndex != null && e.processedMaterialIndex !== "") shipped.add(String(e.processedMaterialIndex));
+    else legacy.push(e);
+  }
+  for (const e of legacy) {
+    const keyword = OFFTAKER_TO_FEEDSTOCK_KEYWORD[e.feedstockType];
+    const byKeyword = keyword
+      ? lines.find(l => !shipped.has(String(l.index)) && String(l.feedstockType || "").includes(keyword))
+      : null;
+    const target = byKeyword || lines.find(l => !shipped.has(String(l.index)));
+    if (target) shipped.add(String(target.index));
+  }
+  return [...shipped];
 }
 function unshippedLineIndexes(batch) {
-  const processed = processedLineIndexes(batch);
   const shipped = shippedLineIndexes(batch);
-  // Rows written before per-line tracking carry no index; treat them as complete.
-  if (!shipped.length && (batch.offtakerMaterials || []).length) return [];
-  return processed.filter(i => !shipped.includes(i));
+  return processedLineIndexes(batch).filter(i => !shipped.includes(i));
 }
 function allLinesHandedOn(batch) {
   return processedLineIndexes(batch).length > 0 && unshippedLineIndexes(batch).length === 0;
@@ -3863,21 +3886,12 @@ export default function RezyMRVLive() {
   const hasUnprocessedMaterial = (b) => allMaterialIndexesOf(b).some(idx => !processedIndexesOf(b).includes(idx));
   // Batches already picked up by transport, awaiting processing at the facility (incl. partially processed batches with remaining material lines)
   const processBatches = visibleBatches.filter(b => (b.status === "transport" || b.status === "processing") && hasUnprocessedMaterial(b));
-  // Material lines per off-taker-eligible batch (falls back to a single line from the aggregate fields)
-  const offtakerBatchLines = (b) => (b.processedMaterials && b.processedMaterials.length)
-    ? b.processedMaterials.map(m => ({ index: String(m.processedMaterialIndex || 1), feedstockType: m.processedFeedstockType, weightKg: m.acceptedWeightKg, processor: m.processor }))
-    : [{ index: "1", feedstockType: b.processedFeedstockType || b.feedstockType, weightKg: b.acceptedWeightKg || b.weightKg, processor: b.processor }];
-  // Processed lines already handed to an off-taker. Each shipped entry records the
-  // processed line it came from, so a batch can be shipped one line at a time.
-  const shippedIndexesOf = (b) => (b.offtakerMaterials || [])
-    .map(m => (m.processedMaterialIndex === undefined || m.processedMaterialIndex === null) ? null : String(m.processedMaterialIndex))
-    .filter(Boolean);
+  // Same helpers the Chain of Custody view uses, so the picker and the custody
+  // trail can never disagree about which lines are still at the hub.
+  const offtakerBatchLines = offtakerLinesOf;
   const unshippedLinesOf = (b) => {
-    const shipped = shippedIndexesOf(b);
-    // Rows shipped before per-line tracking have offtakerMaterials but no index on
-    // them; treat those batches as fully shipped so nothing is sent twice.
-    if (!shipped.length && (b.offtakerMaterials || []).length) return [];
-    return offtakerBatchLines(b).filter(l => !shipped.includes(String(l.index)));
+    const outstanding = unshippedLineIndexes(b);
+    return offtakerLinesOf(b).filter(l => outstanding.includes(String(l.index)));
   };
   const hasUnshippedLine = (b) => unshippedLinesOf(b).length > 0;
   // Batches with at least one processed line still awaiting off-taker transport.
