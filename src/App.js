@@ -4500,32 +4500,70 @@ function GpsGate({ children }) {
 // operator straight out of a half-filled form with no warning.
 function useExitConfirm() {
   const [asking, setAsking] = useState(false);
+  // How many sentinel entries we have pushed, so leaving can step back past all
+  // of them. A fixed go(-2) was wrong as soon as the operator pressed back twice.
+  const pushedRef = useRef(0);
+  const leavingRef = useRef(false);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    // Sentinel entry: back lands here instead of leaving the app.
-    window.history.pushState({ rezyGuard: true }, "");
-    const onPop = () => {
-      setAsking(true);
-      // Re-arm immediately so a second back press cannot slip past the dialog.
+    const arm = () => {
       window.history.pushState({ rezyGuard: true }, "");
+      pushedRef.current += 1;
+    };
+    // Sentinel entry: back lands here instead of leaving the app.
+    arm();
+    const onPop = () => {
+      // Deliberately on the way out: let the navigation through. Re-arming here
+      // is what made Leave do nothing — the guard cancelled its own exit by
+      // pushing a fresh entry the instant history.go fired popstate.
+      if (leavingRef.current) return;
+      pushedRef.current = Math.max(0, pushedRef.current - 1);
+      setAsking(true);
+      // Re-arm so a second back press cannot slip past the dialog.
+      arm();
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
-  return [asking, setAsking];
+
+  const leave = () => {
+    leavingRef.current = true;
+    setAsking(false);
+    // Past every sentinel we pushed, plus the app's own entry.
+    window.history.go(-(pushedRef.current + 1));
+    // If this tab has nothing before the app, go() is a no-op and the page is
+    // still here; close it where the browser allows that.
+    setTimeout(() => {
+      if (!leavingRef.current) return;
+      try { window.close(); } catch { /* browser refused; nothing further to try */ }
+    }, 400);
+  };
+
+  return [asking, setAsking, leave];
 }
 
 function ExitConfirm({ open, onStay, onLeave }) {
-  const dt = useDeviceT();
+  // Both languages on one dialog, as on the location gate: the operator and
+  // whoever is helping them may not read the same one.
+  const idS = DEVICE_STRINGS.id, enS = DEVICE_STRINGS.en;
   if (!open) return null;
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(17,24,17,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ background: C.cardBg, borderRadius: 14, padding: "22px 22px 18px", maxWidth: 360, width: "100%", boxShadow: "0 8px 28px rgba(0,0,0,0.25)", fontFamily: "'DM Sans', sans-serif" }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: C.forest, margin: "0 0 6px" }}>{dt("exitTitle")}</h2>
-        <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.55, margin: "0 0 16px" }}>{dt("exitBody")}</p>
+        <h2 style={{ fontSize: 16, fontWeight: 800, color: C.forest, margin: "0 0 2px", lineHeight: 1.3 }}>{idS.exitTitle}</h2>
+        <div style={{ fontSize: 13, fontWeight: 500, color: C.mutedLight, margin: "0 0 10px" }}>{enS.exitTitle}</div>
+        <p style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, lineHeight: 1.5, margin: "0 0 2px" }}>{idS.exitBody}</p>
+        <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, margin: "0 0 16px" }}>{enS.exitBody}</p>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          <Btn small onClick={onStay} variant="ghost">{dt("exitCancel")}</Btn>
-          <Btn small onClick={onLeave} variant="danger">{dt("exitConfirm")}</Btn>
+          <Btn small onClick={onStay} variant="ghost">
+            <span style={{ fontWeight: 800 }}>{idS.exitCancel}</span>
+            <span style={{ fontWeight: 500, opacity: 0.85 }}> · {enS.exitCancel}</span>
+          </Btn>
+          <Btn small onClick={onLeave} variant="danger">
+            <span style={{ fontWeight: 800 }}>{idS.exitConfirm}</span>
+            <span style={{ fontWeight: 500, opacity: 0.85 }}> · {enS.exitConfirm}</span>
+          </Btn>
         </div>
       </div>
     </div>
@@ -4601,7 +4639,7 @@ export default function RezyMRVLive() {
   const [reviewStageFilter, setReviewStageFilter] = useState("all");
   const [reviewPage, setReviewPage] = useState(1);
   const [clockNow, setClockNow] = useState(nowISO());
-  const [exitAsking, setExitAsking] = useExitConfirm();
+  const [exitAsking, setExitAsking, exitLeave] = useExitConfirm();
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth <= 680 : false);
   // The seven-column review table needs ~880px plus the page gutters. Below
   // that it can only be shown by clipping or side-scrolling it, so the card
@@ -6090,13 +6128,7 @@ export default function RezyMRVLive() {
     <ExitConfirm
       open={exitAsking}
       onStay={() => setExitAsking(false)}
-      onLeave={() => {
-        setExitAsking(false);
-        // Step back past our sentinel. If this tab has no earlier entry there is
-        // nothing to go back to, so close it instead where the browser allows.
-        if (window.history.length > 2) window.history.go(-2);
-        else window.close();
-      }}
+      onLeave={exitLeave}
     />
   );
 
