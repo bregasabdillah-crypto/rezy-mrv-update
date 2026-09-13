@@ -16,6 +16,36 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
 </head>
 <body style="margin:0;padding:0;background:#E4EEE4;">
+  <!--
+    Shown from the first paint until React mounts, so the launch never sits on a
+    bare logo with no wording. The logo is kept at a modest fixed size rather
+    than scaled to the viewport — the PWA splash blew it up edge to edge.
+    #root is empty until React renders, so this hides itself the moment it does.
+  -->
+  <div id="boot-splash" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#E4EEE4;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+    <img src="/icon-192.png" alt="" width="88" height="88" style="width:88px;height:88px;border-radius:18px;display:block;" />
+    <div style="font-size:17px;font-weight:800;color:#1D5C2E;letter-spacing:.2px;">Rezycology MRV</div>
+    <div style="font-size:11.5px;color:#4a6a50;">Sustainability &amp; Waste Solution</div>
+  </div>
   <div id="root"></div>
+  <script>
+    (function () {
+      var splash = document.getElementById('boot-splash');
+      var root = document.getElementById('root');
+      if (!splash || !root) return;
+      var done = function () {
+        if (!root.childElementCount) return false;
+        splash.style.transition = 'opacity .2s ease';
+        splash.style.opacity = '0';
+        setTimeout(function () { splash.remove(); }, 220);
+        return true;
+      };
+      if (done()) return;
+      var obs = new MutationObserver(function () { if (done()) obs.disconnect(); });
+      obs.observe(root, { childList: true });
+      // Never let a failed mount leave the splash covering the app forever.
+      setTimeout(function () { obs.disconnect(); splash.remove(); }, 10000);
+    })();
+  </script>
 </body>
 </html>
