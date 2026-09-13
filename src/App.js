@@ -91,6 +91,9 @@ const TRANSLATIONS = {
     volumeLegend: "Collected weight per point",
     obpTitle: "Ocean Bound Plastic — distance to coast",
     obpToCoast: "from the nearest coastline",
+    obpToCoastShort: "to coast",
+    obpAverage: "Average",
+    obpTapNote: "tap a marker for that point's exact figure",
     obpAllWithin: "All collection points fall within the OBP radius of",
     obpSomeWithin: "collection points within the OBP radius of",
     obpOutside: "outside",
@@ -438,6 +441,9 @@ const TRANSLATIONS = {
     volumeLegend: "Berat terkumpul per titik",
     obpTitle: "Ocean Bound Plastic — jarak ke pantai",
     obpToCoast: "dari garis pantai terdekat",
+    obpToCoastShort: "ke pantai",
+    obpAverage: "Rata-rata",
+    obpTapNote: "ketuk penanda untuk angka persis titik itu",
     obpAllWithin: "Semua titik pengumpulan berada dalam radius OBP",
     obpSomeWithin: "titik pengumpulan dalam radius OBP",
     obpOutside: "di luar radius",
@@ -3852,6 +3858,7 @@ function CollectionMap({ points, breaks, t }) {
             `<div style="font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.5;color:#111811">
                <strong>${who}</strong><br/>
                ${Math.round(p.kg).toLocaleString()} kg \u00b7 ${p.batches}\u00d7<br/>
+               <span style="color:#2d4a33">${distanceToCoastKm(p.lat, p.lng).toFixed(1)} km ${t("obpToCoastShort")}</span><br/>
                <a href="https://www.google.com/maps?q=${p.lat},${p.lng}" target="_blank" rel="noreferrer"
                   style="font-family:monospace;font-size:11px;color:#1D5C2E">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</a>
              </div>`)
@@ -3864,7 +3871,7 @@ function CollectionMap({ points, breaks, t }) {
       setTimeout(() => { if (!cancelled && mapRef.current) mapRef.current.invalidateSize(); }, 120);
     }).catch((e) => { if (!cancelled) setErr(e.message || "map failed to load"); });
     return () => { cancelled = true; };
-  }, [points, breaks]);
+  }, [points, breaks, t]);
 
   useEffect(() => () => {
     markersRef.current = [];
@@ -3959,6 +3966,7 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
   const coastKm = locationRows.map(p => distanceToCoastKm(p.lat, p.lng));
   const coastMin = coastKm.length ? Math.min(...coastKm) : 0;
   const coastMax = coastKm.length ? Math.max(...coastKm) : 0;
+  const coastAvg = coastKm.length ? coastKm.reduce((a, b) => a + b, 0) / coastKm.length : 0;
   const withinObp = coastKm.filter(d => d <= OBP_RADIUS_KM).length;
   const outsideObp = coastKm.length - withinObp;
   // Median rather than mean: a single mis-recorded point (a device reporting from
@@ -4168,6 +4176,9 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
               </div>
               <div style={{ fontSize: 13.5, fontWeight: 800, color: C.forest }}>
                 {coastMin.toFixed(1)} – {coastMax.toFixed(1)} km {t("obpToCoast")}
+              </div>
+              <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>
+                {t("obpAverage")} {coastAvg.toFixed(1)} km · {t("obpTapNote")}
               </div>
               <div style={{ fontSize: 11.5, color: outsideObp > 0 ? "#7a5800" : C.muted, marginTop: 4, fontWeight: outsideObp > 0 ? 700 : 400 }}>
                 {outsideObp === 0
