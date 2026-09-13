@@ -87,7 +87,14 @@ const TRANSLATIONS = {
     distinctPoints: "distinct points",
     lapaksLabel: "lapaks",
     spreadLabel: "spread",
-    mapMarkerNote: "Tap a marker for the lapak, weight and batch count. Marker size = weight collected.",
+    mapMarkerNote: "Tap a marker for the lapak, weight and batch count.",
+    volumeLegend: "Collected weight per point",
+    obpTitle: "Ocean Bound Plastic — distance to coast",
+    obpToCoast: "from the nearest coastline",
+    obpAllWithin: "All collection points fall within the OBP radius of",
+    obpSomeWithin: "collection points within the OBP radius of",
+    obpOutside: "outside",
+    obpMethod: "Straight-line estimate against a coarse Java coastline trace, for screening only. Confirm against your certifying body's criteria before making a claim.",
     mapsLoadFailed: "The map could not load. Check the connection and try again.",
     gpsOutsideIndonesia: "GPS readings outside Indonesia excluded from this map — check those devices",
     selectMaterialType: "Select material type",
@@ -427,7 +434,14 @@ const TRANSLATIONS = {
     distinctPoints: "titik berbeda",
     lapaksLabel: "lapak",
     spreadLabel: "sebaran",
-    mapMarkerNote: "Ketuk penanda untuk melihat lapak, berat, dan jumlah batch. Ukuran penanda = berat yang terkumpul.",
+    mapMarkerNote: "Ketuk penanda untuk melihat lapak, berat, dan jumlah batch.",
+    volumeLegend: "Berat terkumpul per titik",
+    obpTitle: "Ocean Bound Plastic — jarak ke pantai",
+    obpToCoast: "dari garis pantai terdekat",
+    obpAllWithin: "Semua titik pengumpulan berada dalam radius OBP",
+    obpSomeWithin: "titik pengumpulan dalam radius OBP",
+    obpOutside: "di luar radius",
+    obpMethod: "Perkiraan garis lurus terhadap jejak garis pantai Jawa yang kasar, untuk penyaringan awal. Konfirmasikan dengan kriteria lembaga sertifikasi Anda sebelum membuat klaim.",
     mapsLoadFailed: "Peta gagal dimuat. Periksa koneksi lalu coba lagi.",
     gpsOutsideIndonesia: "pembacaan GPS di luar Indonesia dikecualikan dari peta ini — periksa perangkat tersebut",
     selectMaterialType: "Pilih jenis material",
@@ -3251,6 +3265,82 @@ function LoginScreen({ onLogin, lang, setLang }) {
 // ─── Chain of Custody Panel ───────────────────────────────────────────────────
 // Great-circle (haversine) distance between two geo points, in kilometers —
 // used as a proxy for "gmaps proximity" until a real routing/Scope 3 calc is added.
+// ─── Ocean Bound Plastic: distance to the nearest coast ──────────────────────
+// OBP certification counts plastic recovered within 50 km of a shoreline or of a
+// waterway feeding the ocean. There is no offline geocoder here, so distance is
+// measured against a coarse coastline trace for Java and the Sunda Strait —
+// enough resolution to place a point confidently on one side or the other of a
+// 50 km threshold, not a survey-grade figure.
+const OBP_RADIUS_KM = 50;
+// Separate coast sections, NOT one polyline. Concatenating them created phantom
+// segments running straight across Java — Depok measured 10.5 km from the sea
+// against a true ~35 km, because a bogus line joined the Cirebon coast to the
+// Sunda Strait right past it.
+const COASTLINES = [
+  // North Java, west to east
+  [
+    [-5.95, 106.00], [-6.00, 106.20], [-6.03, 106.45], [-6.07, 106.68],
+    [-6.11, 106.84], [-6.05, 107.00], [-5.98, 107.12], [-6.02, 107.40],
+    [-6.15, 107.65], [-6.22, 107.90], [-6.28, 108.10], [-6.35, 108.35],
+    [-6.60, 108.50], [-6.75, 108.60],
+  ],
+  // Sunda Strait, the west-facing coast of Banten
+  [
+    [-5.95, 105.99], [-6.05, 105.90], [-6.20, 105.86], [-6.40, 105.84],
+    [-6.60, 105.78], [-6.80, 105.68],
+  ],
+  // South Java, west to east
+  [
+    [-6.85, 105.75], [-6.95, 106.10], [-7.02, 106.45], [-7.10, 106.75],
+    [-7.25, 106.95], [-7.42, 107.20], [-7.58, 107.60], [-7.68, 108.00],
+    [-7.74, 108.35], [-7.70, 108.65],
+  ],
+];
+// Distance from a point to a segment, in a local planar approximation. Accurate
+// to well under a kilometre at these latitudes and far better than snapping to
+// the nearest vertex, which would overstate distance between sparse points.
+function pointToSegmentKm(p, a, b) {
+  const KM_PER_DEG = 111.32;
+  const cosLat = Math.cos((p[0] * Math.PI) / 180);
+  const px = p[1] * cosLat, py = p[0];
+  const ax = a[1] * cosLat, ay = a[0];
+  const bx = b[1] * cosLat, by = b[0];
+  const dx = bx - ax, dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  const tRaw = lenSq === 0 ? 0 : ((px - ax) * dx + (py - ay) * dy) / lenSq;
+  const t = Math.max(0, Math.min(1, tRaw));
+  const cx = ax + t * dx, cy = ay + t * dy;
+  return Math.hypot(px - cx, py - cy) * KM_PER_DEG;
+}
+function distanceToCoastKm(lat, lng) {
+  let best = Infinity;
+  for (const line of COASTLINES) {
+    for (let i = 0; i < line.length - 1; i++) {
+      const d = pointToSegmentKm([lat, lng], line[i], line[i + 1]);
+      if (d < best) best = d;
+    }
+  }
+  return best;
+}
+
+// Sequential scale for collected weight. ColorBrewer YlOrRd: ordered, readable
+// against OpenStreetMap tiles, and distinguishable for the common forms of
+// colour blindness — unlike the single green that made every marker identical.
+const VOLUME_COLORS = ["#ffeda0", "#fed976", "#fd8d3c", "#e31a1c", "#800026"];
+// Quintiles rather than fixed cut-offs: collection weights are heavily skewed,
+// and round thresholds would drop almost every point into one class.
+function volumeBreaks(values) {
+  const v = [...values].filter(Number.isFinite).sort((a, b) => a - b);
+  if (!v.length) return [];
+  const at = (q) => v[Math.min(v.length - 1, Math.floor(q * v.length))];
+  return [at(0.2), at(0.4), at(0.6), at(0.8)];
+}
+function volumeClass(kg, breaks) {
+  let i = 0;
+  while (i < breaks.length && kg > breaks[i]) i++;
+  return i;
+}
+
 // Indonesia's bounding box, Sabang to Merauke with a little margin. Used to keep
 // collection analytics to real rounds: a handset reporting from another country
 // is a device or VPN artefact, and one such point would set the map scale.
@@ -3718,7 +3808,7 @@ function loadLeaflet() {
 
 // Live map of every collection point. One circle per point, sized by weight, with
 // the view fitted to the data so the spread is the map itself.
-function CollectionMap({ points, t }) {
+function CollectionMap({ points, breaks, t }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   // Track the markers we created. The effect re-runs whenever the filtered set is
@@ -3744,19 +3834,19 @@ function CollectionMap({ points, t }) {
       markersRef.current.forEach(m => map.removeLayer(m));
       markersRef.current = [];
 
-      const maxKg = Math.max(...points.map(p => p.kg), 1);
       const latLngs = [];
       points.forEach((p) => {
         latLngs.push([p.lat, p.lng]);
         const who = [...p.lapaks].map(maskName).join(", ") || "\u2014";
+        const cls = volumeClass(p.kg, breaks);
         const marker = L.circleMarker([p.lat, p.lng], {
-          // Radius from the square root of weight, so area tracks the figure and
-          // one heavy point does not blot out its neighbours.
-          radius: 5 + Math.sqrt(p.kg / maxKg) * 14,
-          color: C.forest,
-          weight: 1.2,
-          fillColor: C.forest,
-          fillOpacity: 0.45,
+          // Weight is carried by colour now, so the radius stays small and fixed.
+          // Scaling it as well produced overlapping blobs that hid the pattern.
+          radius: 7,
+          color: "#ffffff",
+          weight: 1.4,
+          fillColor: VOLUME_COLORS[cls],
+          fillOpacity: 0.9,
         })
           .bindPopup(
             `<div style="font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.5;color:#111811">
@@ -3774,7 +3864,7 @@ function CollectionMap({ points, t }) {
       setTimeout(() => { if (!cancelled && mapRef.current) mapRef.current.invalidateSize(); }, 120);
     }).catch((e) => { if (!cancelled) setErr(e.message || "map failed to load"); });
     return () => { cancelled = true; };
-  }, [points]);
+  }, [points, breaks]);
 
   useEffect(() => () => {
     markersRef.current = [];
@@ -3864,6 +3954,13 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
   const allLocationRows = Object.values(locationMap).sort((a, b) => b.kg - a.kg);
   const locationRows = allLocationRows.filter(inIndonesia);
   const excludedPoints = allLocationRows.length - locationRows.length;
+  const volBreaks = volumeBreaks(locationRows.map(p => p.kg));
+  // Distance to the nearest coast per point, for the OBP 50 km criterion.
+  const coastKm = locationRows.map(p => distanceToCoastKm(p.lat, p.lng));
+  const coastMin = coastKm.length ? Math.min(...coastKm) : 0;
+  const coastMax = coastKm.length ? Math.max(...coastKm) : 0;
+  const withinObp = coastKm.filter(d => d <= OBP_RADIUS_KM).length;
+  const outsideObp = coastKm.length - withinObp;
   // Median rather than mean: a single mis-recorded point (a device reporting from
   // another country) would drag a mean centre into the ocean.
   const median = (arr) => {
@@ -4038,9 +4135,48 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
             {locSpanKm > 0 ? ` · ${t("spreadLabel")} ${locSpanKm.toFixed(locSpanKm < 10 ? 1 : 0)} km` : ""}
           </div>
 
-          <CollectionMap points={locationRows} t={t} />
+          <CollectionMap points={locationRows} breaks={volBreaks} t={t} />
 
-          <div style={{ fontSize: 11, color: C.mutedLight, textAlign: "center", marginTop: 6 }}>{t("mapMarkerNote")}</div>
+          {/* Colour index for the marker scale */}
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 6 }}>
+              {t("volumeLegend")}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
+              {VOLUME_COLORS.map((color, i) => {
+                const lo = i === 0 ? 0 : volBreaks[i - 1];
+                const hi = i < volBreaks.length ? volBreaks[i] : null;
+                const label = hi === null
+                  ? `> ${Math.round(lo).toLocaleString()} kg`
+                  : `${Math.round(lo).toLocaleString()}–${Math.round(hi).toLocaleString()} kg`;
+                return (
+                  <span key={color} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: C.charcoal }}>
+                    <span style={{ width: 13, height: 13, borderRadius: "50%", background: color, border: "1.4px solid #fff", boxShadow: "0 0 0 1px rgba(0,0,0,0.18)", flexShrink: 0 }} />
+                    {label}
+                  </span>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 10.5, color: C.mutedLight, marginTop: 5 }}>{t("mapMarkerNote")}</div>
+          </div>
+
+          {/* Ocean Bound Plastic eligibility */}
+          {coastKm.length > 0 && (
+            <div style={{ marginTop: 12, background: C.creamMid, borderRadius: 10, padding: "11px 14px" }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 5 }}>
+                {t("obpTitle")}
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 800, color: C.forest }}>
+                {coastMin.toFixed(1)} – {coastMax.toFixed(1)} km {t("obpToCoast")}
+              </div>
+              <div style={{ fontSize: 11.5, color: outsideObp > 0 ? "#7a5800" : C.muted, marginTop: 4, fontWeight: outsideObp > 0 ? 700 : 400 }}>
+                {outsideObp === 0
+                  ? `${t("obpAllWithin")} ${OBP_RADIUS_KM} km`
+                  : `${withinObp}/${coastKm.length} ${t("obpSomeWithin")} ${OBP_RADIUS_KM} km — ${outsideObp} ${t("obpOutside")}`}
+              </div>
+              <div style={{ fontSize: 10.5, color: C.mutedLight, marginTop: 5, lineHeight: 1.5 }}>{t("obpMethod")}</div>
+            </div>
+          )}
 
           {excludedPoints > 0 && (
             <div style={{ background: "#fff8e1", border: `1px solid #f0d58a`, borderRadius: 8, padding: "8px 12px", fontSize: 11.5, color: "#7a5800", marginTop: 12, fontWeight: 600 }}>
