@@ -805,9 +805,11 @@ const ROLES = {
 
 // ─── Reference Data ───────────────────────────────────────────────────────────
 const FEEDSTOCK_TYPES = [
-  "PET (Rigid)", "HDPE (Rigid)", "LDPE (Flexible)",
-  "PP (Mixed)", "PS", "LVP – Flexibles",
-  "LVP – Multi-layer", "Mixed Post-Consumer Plastic",
+  "PET Bodong Mix", "PET Bodong Clear", "PET Bodong BM", "PET Bodong Warna",
+  "PP Gelas A", "PP Gelas B", "PP Gelas Montea",
+  "Ember Gabrug",
+  "Bale Press PET Mix", "Bale Press PET Clear", "Bale Press PET BM", "Bale Press PET Warna",
+  "PP Karung", "PE Polibek", "Kardus box", "HDPE Jerigen",
 ];
 // End-of-Waste definitions
 // EoW is reached when plastic waste has undergone a recovery operation and meets
@@ -891,6 +893,11 @@ const OFFTAKER_FEEDSTOCK_TYPES = [
 ];
 // Maps each off-taker product grade to the collected/processed feedstock keyword
 // (from FEEDSTOCK_TYPES) it should be sourced from, used to filter eligible batches.
+// A product with no entry here applies no feedstock filter at all, so the picker
+// shows every processed line. That is deliberate: after the material vocabulary
+// changed, LVP, PS and LDPE have no counterpart in FEEDSTOCK_TYPES, and a keyword
+// that matches nothing would leave the operator staring at an empty list with no
+// explanation. Showing everything is the safer failure.
 const OFFTAKER_TO_FEEDSTOCK_KEYWORD = {
   "PET Clear (Baled-press)": "PET",
   "PET Blue light (Baled-press)": "PET",
@@ -900,12 +907,9 @@ const OFFTAKER_TO_FEEDSTOCK_KEYWORD = {
   "PET Dove (Baled-press)": "PET",
   "PET Grade B (Baled-press)": "PET",
   "PET Grade C (Baled-press)": "PET",
-  "PP LVP (Pellet)": "LVP",
-  "PP Karung (Pellet)": "PP",
-  "PS (Pellet)": "PS",
-  "PP Mixed gabrug (Baled-press)": "Mixed Post-Consumer",
+  "PP Karung (Pellet)": "PP Karung",
+  "PP Mixed gabrug (Baled-press)": "Gabrug",
   "HDPE (Flakes)": "HDPE",
-  "LDPE (Flakes)": "LDPE",
 };
 const OFFTAKER_PLATE_NUMBERS = [
   "B 9022 WAC",
