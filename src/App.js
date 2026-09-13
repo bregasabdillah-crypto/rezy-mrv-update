@@ -841,7 +841,7 @@ const COLLECTORS = [
   "Andi", "Andi/ Karim", "Anggoro", "Asmat", "Atmaja", "Bambang", "BEI", "Benen", "Budi",
   "Budiyanto", "Burhan", "Cahyono", "Chasim", "Cultivia", "Dasana", "Daur Id", "Dimas",
   "Dolly", "Donal", "Eban", "Edi", "Edi Cinere", "Egy", "Enen", "Faisol", "Fatih", "Gudang",
-  "Hadi", "Hasanudin", "Hendra", "Hendrik", "Heri Saipah", "Hikmat", "Hj Latip", "Ilman",
+  "Hadi", "Hasanudin", "Hendra", "Hendrik", "Heri Saipah", "Hikmat", "Hj Latip", "Ijal", "Ilman",
   "Imam", "Imam Hanafi", "Inoh Enen", "Ipan", "Irul", "Isro", "Iut Kahfi", "Izal", "Jamal",
   "Jana BSD", "Jangkung", "Julius", "Juma", "Jumahi", "Kadani", "Kana", "Kariman",
   "Kholil Yuli", "Kohar", "Kong Adik", "Kopi Haus", "Kumis", "Mahfud", "Mahmud", "Mail",
