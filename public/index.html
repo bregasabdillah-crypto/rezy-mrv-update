@@ -43,8 +43,32 @@
       if (done()) return;
       var obs = new MutationObserver(function () { if (done()) obs.disconnect(); });
       obs.observe(root, { childList: true });
-      // Never let a failed mount leave the splash covering the app forever.
-      setTimeout(function () { obs.disconnect(); splash.remove(); }, 10000);
+      // If the app still has not mounted, the cached "/" is almost certainly
+      // pointing at a bundle hash that no longer exists. Drop the service worker
+      // and its caches and reload once — otherwise the only cure is the user
+      // knowing to hard-refresh. sessionStorage guards against a reload loop.
+      setTimeout(function () {
+        obs.disconnect();
+        if (root.childElementCount) { splash.remove(); return; }
+        var KEY = 'rezy-sw-recovered';
+        var tried = false;
+        try { tried = sessionStorage.getItem(KEY) === '1'; } catch (e) {}
+        if (tried) { splash.remove(); return; }
+        try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+        var done = function () { window.location.reload(); };
+        var jobs = [];
+        if (window.caches && caches.keys) {
+          jobs.push(caches.keys().then(function (ks) {
+            return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+          }));
+        }
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+          jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+          }));
+        }
+        Promise.all(jobs).then(done, done);
+      }, 10000);
     })();
   </script>
 </body>

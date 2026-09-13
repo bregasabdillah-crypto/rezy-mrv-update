@@ -4054,7 +4054,13 @@ const DEVICE_STRINGS = {
     gpsAllow: "Allow location",
     gpsChecking: "Checking location access…",
     gpsDeniedTitle: "Location access is blocked",
-    gpsDeniedBody: "Location permission was refused for this site. Enable it in your browser settings — usually the padlock or ⓘ icon next to the address — then tap Try again.",
+    gpsDeniedBody: "This site's location permission was refused, and the browser will not ask again on its own. Re-enable it, then reload:",
+    gpsStep1: "Tap the padlock or ⓘ icon next to the web address",
+    gpsStep2: "Open Permissions and set Location to Allow",
+    gpsStep3: "Come back here and tap Reload",
+    gpsReload: "Reload",
+    gpsDeviceOffTitle: "Your phone's location is off",
+    gpsDeviceOffBody: "The app may use location, but the phone itself is not providing one. Turn on Location in your phone settings — swipe down from the top and switch Location on — then tap Try again.",
     gpsUnsupported: "This browser does not support location services. Please open Rezycology MRV in Chrome or Safari.",
     gpsRetry: "Try again",
     exitTitle: "Leave Rezycology MRV?",
@@ -4068,7 +4074,13 @@ const DEVICE_STRINGS = {
     gpsAllow: "Izinkan lokasi",
     gpsChecking: "Memeriksa akses lokasi…",
     gpsDeniedTitle: "Akses lokasi diblokir",
-    gpsDeniedBody: "Izin lokasi ditolak untuk situs ini. Aktifkan di pengaturan browser — biasanya ikon gembok atau ⓘ di sebelah alamat — lalu ketuk Coba lagi.",
+    gpsDeniedBody: "Izin lokasi untuk situs ini ditolak, dan browser tidak akan bertanya lagi dengan sendirinya. Aktifkan kembali, lalu muat ulang:",
+    gpsStep1: "Ketuk ikon gembok atau ⓘ di sebelah alamat web",
+    gpsStep2: "Buka Izin lalu atur Lokasi menjadi Izinkan",
+    gpsStep3: "Kembali ke sini dan ketuk Muat ulang",
+    gpsReload: "Muat ulang",
+    gpsDeviceOffTitle: "Lokasi ponsel Anda mati",
+    gpsDeviceOffBody: "Aplikasi boleh memakai lokasi, tetapi ponselnya sendiri tidak memberikan lokasi. Nyalakan Lokasi di pengaturan ponsel — geser dari atas lalu aktifkan Lokasi — kemudian ketuk Coba lagi.",
     gpsUnsupported: "Browser ini tidak mendukung layanan lokasi. Silakan buka Rezycology MRV di Chrome atau Safari.",
     gpsRetry: "Coba lagi",
     exitTitle: "Keluar dari Rezycology MRV?",
@@ -4097,7 +4109,12 @@ function useDeviceT() {
 // only create batches that fail their own chain-of-custody requirements.
 function GpsGate({ children }) {
   const dt = useDeviceT();
-  const [state, setState] = useState("checking"); // checking | ok | denied | unsupported
+  // blocked   = site permission refused. The browser will NOT ask again, so
+  //             retrying is futile and the copy must say how to re-enable it.
+  // deviceOff = permission is fine but the phone has no location provider.
+  //             Retrying here genuinely re-triggers the OS prompt.
+  const [state, setState] = useState("checking"); // checking|ok|blocked|deviceOff|unsupported
+  const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -4106,40 +4123,84 @@ function GpsGate({ children }) {
       setState("unsupported");
       return;
     }
-    setState("checking");
-    navigator.geolocation.getCurrentPosition(
-      () => { if (!cancelled) setState("ok"); },
-      (err) => {
-        if (cancelled) return;
-        // POSITION_UNAVAILABLE / TIMEOUT are transient (indoors, cold GPS) and
-        // must not lock an operator out; only an explicit refusal blocks.
-        setState(err && err.code === 1 ? "denied" : "ok");
-      },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 },
-    );
-    return () => { cancelled = true; };
+    let permStatus = null;
+    const finish = (next) => { if (!cancelled) { setState(next); setBusy(false); } };
+
+    (async () => {
+      setBusy(true);
+      if (!cancelled) setState(prev => (prev === "ok" ? prev : "checking"));
+      // Ask the Permissions API first. Once a site is denied, getCurrentPosition
+      // rejects instantly with no dialog, which is why "Try again" looked dead.
+      try {
+        permStatus = await navigator.permissions?.query({ name: "geolocation" });
+        if (permStatus) {
+          permStatus.onchange = () => { if (!cancelled) setAttempt(a => a + 1); };
+          if (permStatus.state === "denied") { finish("blocked"); return; }
+        }
+      } catch { /* Permissions API unavailable — fall through to a direct probe */ }
+
+      navigator.geolocation.getCurrentPosition(
+        () => finish("ok"),
+        (err) => {
+          const code = err && err.code;
+          if (code === 1) finish("blocked");            // refused, now or previously
+          else if (code === 2) finish("deviceOff");     // no provider: phone location off
+          else finish("ok");                            // timeout only: transient, never lock out
+        },
+        // maximumAge 0: a retry must take a fresh reading, not hand back the
+        // cached fix that was already there before the operator changed anything.
+        { enableHighAccuracy: false, timeout: 12000, maximumAge: 0 },
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+      if (permStatus) permStatus.onchange = null;
+    };
   }, [attempt]);
 
   if (state === "ok") return children;
 
-  const denied = state === "denied";
+  const blocked = state === "blocked";
+  const deviceOff = state === "deviceOff";
   const unsupported = state === "unsupported";
+  const title = unsupported ? dt("gpsTitle")
+    : blocked ? dt("gpsDeniedTitle")
+    : deviceOff ? dt("gpsDeviceOffTitle")
+    : dt("gpsTitle");
+  const body = unsupported ? dt("gpsUnsupported")
+    : blocked ? dt("gpsDeniedBody")
+    : deviceOff ? dt("gpsDeviceOffBody")
+    : dt("gpsBody");
+
   return (
     <div style={{ minHeight: "100vh", background: C.pageBg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ background: C.cardBg, border: `1px solid ${C.creamDark}`, borderTop: `3px solid ${C.orange}`, borderRadius: 14, padding: "26px 24px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 1px 3px rgba(29,92,46,0.06)" }}>
         <div style={{ fontSize: 34, marginBottom: 10 }}>📍</div>
-        <h1 style={{ fontSize: 18, fontWeight: 800, color: C.forest, margin: "0 0 8px" }}>
-          {unsupported ? dt("gpsTitle") : denied ? dt("gpsDeniedTitle") : dt("gpsTitle")}
-        </h1>
-        <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, margin: "0 0 18px" }}>
-          {unsupported ? dt("gpsUnsupported") : denied ? dt("gpsDeniedBody") : dt("gpsBody")}
-        </p>
-        {state === "checking" ? (
-          <div style={{ fontSize: 12, color: C.mutedLight, fontWeight: 600 }}>{dt("gpsChecking")}</div>
+        <h1 style={{ fontSize: 18, fontWeight: 800, color: C.forest, margin: "0 0 8px" }}>{title}</h1>
+        <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, margin: "0 0 14px" }}>{body}</p>
+
+        {blocked && (
+          <ol style={{ textAlign: "left", fontSize: 12.5, color: C.charcoal, lineHeight: 1.7, margin: "0 0 16px", paddingLeft: 20 }}>
+            <li>{dt("gpsStep1")}</li>
+            <li>{dt("gpsStep2")}</li>
+            <li>{dt("gpsStep3")}</li>
+          </ol>
+        )}
+
+        {busy ? (
+          <div style={{ fontSize: 12, color: C.mutedLight, fontWeight: 600, padding: "10px 0" }}>{dt("gpsChecking")}</div>
         ) : !unsupported && (
-          <Btn onClick={() => setAttempt(a => a + 1)} variant="primary" full>
-            {denied ? dt("gpsRetry") : dt("gpsAllow")}
-          </Btn>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* Reloading is what actually applies a permission change, so it leads
+                for the blocked case; retrying alone cannot reopen the prompt. */}
+            {blocked && (
+              <Btn onClick={() => window.location.reload()} variant="primary" full>{dt("gpsReload")}</Btn>
+            )}
+            <Btn onClick={() => setAttempt(a => a + 1)} variant={blocked ? "ghost" : "primary"} full>
+              {state === "checking" ? dt("gpsAllow") : dt("gpsRetry")}
+            </Btn>
+          </div>
         )}
       </div>
     </div>
