@@ -83,6 +83,15 @@ const TRANSLATIONS = {
     enterLapakName: "Enter lapak name",
     selectEowProcess: "Select End-of-Waste process",
     selectFacility: "Select facility",
+    collectionLocations: "Collection Locations",
+    distinctPoints: "distinct points",
+    lapaksLabel: "lapaks",
+    spreadLabel: "spread",
+    dotSizeNote: "Dot size = weight collected at that point",
+    openInMaps: "Maps",
+    openAreaInMaps: "Open collection area in Google Maps",
+    morePoints: "more points",
+    gpsOutsideIndonesia: "GPS readings outside Indonesia excluded from this map — check those devices",
     selectMaterialType: "Select material type",
     selectWeighingEquip: "Select weighing equipment",
     selectFeedstockType: "Select feedstock type",
@@ -416,6 +425,15 @@ const TRANSLATIONS = {
     enterLapakName: "Masukkan nama lapak",
     selectEowProcess: "Pilih proses Akhir Limbah",
     selectFacility: "Pilih fasilitas",
+    collectionLocations: "Lokasi Pengumpulan",
+    distinctPoints: "titik berbeda",
+    lapaksLabel: "lapak",
+    spreadLabel: "sebaran",
+    dotSizeNote: "Ukuran titik = berat yang terkumpul di titik itu",
+    openInMaps: "Peta",
+    openAreaInMaps: "Buka area pengumpulan di Google Maps",
+    morePoints: "titik lainnya",
+    gpsOutsideIndonesia: "pembacaan GPS di luar Indonesia dikecualikan dari peta ini — periksa perangkat tersebut",
     selectMaterialType: "Pilih jenis material",
     selectWeighingEquip: "Pilih alat timbang",
     selectFeedstockType: "Pilih jenis bahan baku",
@@ -3232,6 +3250,15 @@ function LoginScreen({ onLogin, lang, setLang }) {
 // ─── Chain of Custody Panel ───────────────────────────────────────────────────
 // Great-circle (haversine) distance between two geo points, in kilometers —
 // used as a proxy for "gmaps proximity" until a real routing/Scope 3 calc is added.
+// Indonesia's bounding box, Sabang to Merauke with a little margin. Used to keep
+// collection analytics to real rounds: a handset reporting from another country
+// is a device or VPN artefact, and one such point would set the map scale.
+const INDONESIA_BOUNDS = { minLat: -11.5, maxLat: 6.5, minLng: 94.5, maxLng: 141.5 };
+function inIndonesia(p) {
+  return p.lat >= INDONESIA_BOUNDS.minLat && p.lat <= INDONESIA_BOUNDS.maxLat
+    && p.lng >= INDONESIA_BOUNDS.minLng && p.lng <= INDONESIA_BOUNDS.maxLng;
+}
+
 function haversineDistanceKm(geoA, geoB) {
   if (!geoA || !geoB) return null;
   const lat1 = Number(geoA.lat), lng1 = Number(geoA.lng);
@@ -3718,6 +3745,63 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
     return `M 120 120 L ${start.x} ${start.y} A 100 100 0 ${large} 1 ${end.x} ${end.y} Z`;
   }
 
+  // ── Collection locations ──────────────────────────────────────────────────
+  // Points are clustered to ~3 decimal places (about 100 m) so repeat pickups at
+  // the same lapak collapse into one dot instead of a smear of near-duplicates.
+  const locationMap = {};
+  analyticsRows.forEach(b => {
+    const lat = Number(b.collectionLat), lng = Number(b.collectionLng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return;
+    const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
+    const entry = locationMap[key] || (locationMap[key] = { lat, lng, batches: 0, kg: 0, lapaks: new Set() });
+    entry.batches += 1;
+    entry.kg += Number(b.weightKg) || 0;
+    if (b.collectorId) entry.lapaks.add(b.collectorId);
+  });
+  // Indonesia only. Readings from outside the archipelago are device/VPN
+  // artefacts, not collection rounds, and including them makes the map useless.
+  const allLocationRows = Object.values(locationMap).sort((a, b) => b.kg - a.kg);
+  const locationRows = allLocationRows.filter(inIndonesia);
+  const excludedPoints = allLocationRows.length - locationRows.length;
+  const locMaxKg = Math.max(...locationRows.map(p => p.kg), 1);
+  // Median rather than mean: a single mis-recorded point (a device reporting from
+  // another country) would drag a mean centre into the ocean.
+  const median = (arr) => {
+    if (!arr.length) return 0;
+    const v = [...arr].sort((x, y) => x - y);
+    const m = Math.floor(v.length / 2);
+    return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+  };
+  const locCentreLat = median(locationRows.map(p => p.lat));
+  const locCentreLng = median(locationRows.map(p => p.lng));
+
+  // Points more than 100 km from the median centre are almost certainly bad GPS
+  // rather than a real collection round; surfaced as a data-quality signal.
+  const plotRows = locationRows;
+  const locSpanKm = plotRows.length > 1
+    ? haversineDistanceKm(
+        { lat: Math.min(...plotRows.map(p => p.lat)), lng: Math.min(...plotRows.map(p => p.lng)) },
+        { lat: Math.max(...plotRows.map(p => p.lat)), lng: Math.max(...plotRows.map(p => p.lng)) }) || 0
+    : 0;
+  const locBounds = plotRows.reduce((acc, p) => ({
+    minLat: Math.min(acc.minLat, p.lat), maxLat: Math.max(acc.maxLat, p.lat),
+    minLng: Math.min(acc.minLng, p.lng), maxLng: Math.max(acc.maxLng, p.lng),
+  }), { minLat: 90, maxLat: -90, minLng: 180, maxLng: -180 });
+  const plot = (p) => {
+    // A single point, or a row of points sharing a latitude, would give a zero
+    // span and divide by zero; pad to ~300 m so those still render centred.
+    const spanLat = Math.max(locBounds.maxLat - locBounds.minLat, 0.003);
+    const spanLng = Math.max(locBounds.maxLng - locBounds.minLng, 0.003);
+    const midLat = (locBounds.maxLat + locBounds.minLat) / 2;
+    const midLng = (locBounds.maxLng + locBounds.minLng) / 2;
+    const clamp = (v) => Math.max(5, Math.min(95, v));
+    return {
+      // Latitude grows northwards, y grows downwards.
+      x: clamp(50 + ((p.lng - midLng) / spanLng) * 80),
+      y: clamp(50 - ((p.lat - midLat) / spanLat) * 80),
+    };
+  };
+
   // ── Pipeline stages ───────────────────────────────────────────────────────
   const PIPELINE = [
     { label: "Collection", status: "collection", color: "#e07020", icon: "📦" },
@@ -3863,6 +3947,77 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
         </Card>
       )}
 
+      {/* ── Collection locations ── */}
+      {locationRows.length > 0 && (
+        <Card style={{ marginBottom: 16 }}>
+          <SectionTitle>{t("collectionLocations")}</SectionTitle>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+            {locationRows.length} {t("distinctPoints")} · {new Set(locationRows.flatMap(p => [...p.lapaks])).size} {t("lapaksLabel")}
+            {locSpanKm > 0 ? ` · ${t("spreadLabel")} ${locSpanKm.toFixed(locSpanKm < 10 ? 1 : 0)} km` : ""}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 12 }}>
+            {/* Scatter of every point, sized by weight — shows the spread itself */}
+            <div style={{ border: `1px solid ${C.creamDark}`, borderRadius: 10, background: C.pageBg, padding: 8 }}>
+              <svg viewBox="0 0 100 100" style={{ width: "100%", height: 200, display: "block" }}>
+                <rect x="0" y="0" width="100" height="100" fill={C.cream} rx="3" />
+                {locationRows.map((p, i) => {
+                  const { x, y } = plot(p);
+                  const r = 1.4 + (p.kg / locMaxKg) * 3.6;
+                  return <circle key={i} cx={x} cy={y} r={r} fill={C.forest} fillOpacity="0.45" stroke={C.forest} strokeWidth="0.4" />;
+                })}
+              </svg>
+              <div style={{ fontSize: 9.5, color: C.mutedLight, textAlign: "center", marginTop: 4 }}>{t("dotSizeNote")}</div>
+            </div>
+
+            {/* Google Maps, centred on the median point */}
+            <div style={{ border: `1px solid ${C.creamDark}`, borderRadius: 10, overflow: "hidden", minHeight: 200 }}>
+              <iframe
+                title="collection-locations"
+                src={`https://maps.google.com/maps?q=${locCentreLat},${locCentreLng}&z=${locSpanKm > 40 ? 9 : locSpanKm > 10 ? 11 : 13}&output=embed`}
+                style={{ width: "100%", height: 216, border: 0, display: "block" }}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+            <a href={`https://www.google.com/maps?q=${locCentreLat},${locCentreLng}&z=13`} target="_blank" rel="noreferrer"
+               style={{ gridColumn: isMobile ? "auto" : "1 / -1", fontSize: 11.5, color: C.forest, fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
+              {t("openAreaInMaps")} →
+            </a>
+          </div>
+
+          {excludedPoints > 0 && (
+            <div style={{ background: "#fff8e1", border: `1px solid #f0d58a`, borderRadius: 8, padding: "8px 12px", fontSize: 11.5, color: "#7a5800", marginBottom: 12, fontWeight: 600 }}>
+              {excludedPoints} {t("gpsOutsideIndonesia")}
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {locationRows.slice(0, 8).map((p, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 12, paddingBottom: 6, borderBottom: i < Math.min(locationRows.length, 8) - 1 ? `1px solid ${C.cream}` : "none" }}>
+                <span style={{ fontFamily: "'DM Mono', monospace", color: C.forest, fontWeight: 700, minWidth: 140 }}>
+                  {p.lat.toFixed(4)}, {p.lng.toFixed(4)}
+                </span>
+                <span style={{ color: C.muted, flex: 1, minWidth: 120 }}>
+                  {[...p.lapaks].map(maskName).join(", ") || "—"}
+                </span>
+                <span style={{ fontWeight: 800, color: C.charcoal }}>{Math.round(p.kg).toLocaleString()} kg</span>
+                <span style={{ color: C.mutedLight }}>{p.batches}×</span>
+                <a href={`https://www.google.com/maps?q=${p.lat},${p.lng}`} target="_blank" rel="noreferrer"
+                   style={{ fontSize: 11, color: C.forest, fontWeight: 700, textDecoration: "none", border: `1px solid ${C.creamDark}`, borderRadius: 999, padding: "2px 9px" }}>
+                  {t("openInMaps")}
+                </a>
+              </div>
+            ))}
+            {locationRows.length > 8 && (
+              <div style={{ fontSize: 11, color: C.mutedLight, paddingTop: 2 }}>
+                +{locationRows.length - 8} {t("morePoints")}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* ── Weekly collection trend ── */}
       {weeklyRows.length > 0 && (
         <Card>
@@ -3886,6 +4041,146 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
+// ─── Device-language strings ──────────────────────────────────────────────────
+// These are deliberately NOT tied to the in-app EN/ID toggle. They are shown
+// before anyone has signed in or chosen a language, so they follow the phone's
+// own setting (navigator.language). Only id and en are translated; anything
+// else falls back to en rather than guessing at a translation.
+const DEVICE_STRINGS = {
+  en: {
+    gpsTitle: "Location access required",
+    gpsBody: "Every batch is recorded with the GPS coordinates where it was collected. Rezycology MRV cannot be used without location access.",
+    gpsAllow: "Allow location",
+    gpsChecking: "Checking location access…",
+    gpsDeniedTitle: "Location access is blocked",
+    gpsDeniedBody: "Location permission was refused for this site. Enable it in your browser settings — usually the padlock or ⓘ icon next to the address — then tap Try again.",
+    gpsUnsupported: "This browser does not support location services. Please open Rezycology MRV in Chrome or Safari.",
+    gpsRetry: "Try again",
+    exitTitle: "Leave Rezycology MRV?",
+    exitBody: "Any entry you have not submitted will be lost.",
+    exitConfirm: "Leave",
+    exitCancel: "Stay",
+  },
+  id: {
+    gpsTitle: "Akses lokasi diperlukan",
+    gpsBody: "Setiap batch dicatat dengan koordinat GPS tempat pengumpulannya. Rezycology MRV tidak dapat digunakan tanpa akses lokasi.",
+    gpsAllow: "Izinkan lokasi",
+    gpsChecking: "Memeriksa akses lokasi…",
+    gpsDeniedTitle: "Akses lokasi diblokir",
+    gpsDeniedBody: "Izin lokasi ditolak untuk situs ini. Aktifkan di pengaturan browser — biasanya ikon gembok atau ⓘ di sebelah alamat — lalu ketuk Coba lagi.",
+    gpsUnsupported: "Browser ini tidak mendukung layanan lokasi. Silakan buka Rezycology MRV di Chrome atau Safari.",
+    gpsRetry: "Coba lagi",
+    exitTitle: "Keluar dari Rezycology MRV?",
+    exitBody: "Isian yang belum dikirim akan hilang.",
+    exitConfirm: "Keluar",
+    exitCancel: "Tetap di sini",
+  },
+};
+function deviceLang() {
+  try {
+    const tags = navigator.languages?.length ? navigator.languages : [navigator.language];
+    for (const tag of tags) {
+      const primary = String(tag || "").toLowerCase().split("-")[0];
+      if (DEVICE_STRINGS[primary]) return primary;
+    }
+  } catch { /* fall through */ }
+  return "en";
+}
+function useDeviceT() {
+  const [lang] = useState(deviceLang);
+  return (key) => DEVICE_STRINGS[lang]?.[key] ?? DEVICE_STRINGS.en[key] ?? key;
+}
+
+// Blocks the whole app until the device can actually produce a position. Every
+// stage writes GPS into the record, so an operator without location access can
+// only create batches that fail their own chain-of-custody requirements.
+function GpsGate({ children }) {
+  const dt = useDeviceT();
+  const [state, setState] = useState("checking"); // checking | ok | denied | unsupported
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setState("unsupported");
+      return;
+    }
+    setState("checking");
+    navigator.geolocation.getCurrentPosition(
+      () => { if (!cancelled) setState("ok"); },
+      (err) => {
+        if (cancelled) return;
+        // POSITION_UNAVAILABLE / TIMEOUT are transient (indoors, cold GPS) and
+        // must not lock an operator out; only an explicit refusal blocks.
+        setState(err && err.code === 1 ? "denied" : "ok");
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 },
+    );
+    return () => { cancelled = true; };
+  }, [attempt]);
+
+  if (state === "ok") return children;
+
+  const denied = state === "denied";
+  const unsupported = state === "unsupported";
+  return (
+    <div style={{ minHeight: "100vh", background: C.pageBg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ background: C.cardBg, border: `1px solid ${C.creamDark}`, borderTop: `3px solid ${C.orange}`, borderRadius: 14, padding: "26px 24px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 1px 3px rgba(29,92,46,0.06)" }}>
+        <div style={{ fontSize: 34, marginBottom: 10 }}>📍</div>
+        <h1 style={{ fontSize: 18, fontWeight: 800, color: C.forest, margin: "0 0 8px" }}>
+          {unsupported ? dt("gpsTitle") : denied ? dt("gpsDeniedTitle") : dt("gpsTitle")}
+        </h1>
+        <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, margin: "0 0 18px" }}>
+          {unsupported ? dt("gpsUnsupported") : denied ? dt("gpsDeniedBody") : dt("gpsBody")}
+        </p>
+        {state === "checking" ? (
+          <div style={{ fontSize: 12, color: C.mutedLight, fontWeight: 600 }}>{dt("gpsChecking")}</div>
+        ) : !unsupported && (
+          <Btn onClick={() => setAttempt(a => a + 1)} variant="primary" full>
+            {denied ? dt("gpsRetry") : dt("gpsAllow")}
+          </Btn>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// The back button on Android (and swipe-back in a PWA) otherwise drops the
+// operator straight out of a half-filled form with no warning.
+function useExitConfirm() {
+  const [asking, setAsking] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Sentinel entry: back lands here instead of leaving the app.
+    window.history.pushState({ rezyGuard: true }, "");
+    const onPop = () => {
+      setAsking(true);
+      // Re-arm immediately so a second back press cannot slip past the dialog.
+      window.history.pushState({ rezyGuard: true }, "");
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  return [asking, setAsking];
+}
+
+function ExitConfirm({ open, onStay, onLeave }) {
+  const dt = useDeviceT();
+  if (!open) return null;
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(17,24,17,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: C.cardBg, borderRadius: 14, padding: "22px 22px 18px", maxWidth: 360, width: "100%", boxShadow: "0 8px 28px rgba(0,0,0,0.25)", fontFamily: "'DM Sans', sans-serif" }}>
+        <h2 style={{ fontSize: 16, fontWeight: 800, color: C.forest, margin: "0 0 6px" }}>{dt("exitTitle")}</h2>
+        <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.55, margin: "0 0 16px" }}>{dt("exitBody")}</p>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          <Btn small onClick={onStay} variant="ghost">{dt("exitCancel")}</Btn>
+          <Btn small onClick={onLeave} variant="danger">{dt("exitConfirm")}</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RezyMRVLive() {
   const [role, setRole] = useState(null);
   // Persisted so the choice survives a reload and carries into /verify.html.
@@ -3955,6 +4250,7 @@ export default function RezyMRVLive() {
   const [reviewStageFilter, setReviewStageFilter] = useState("all");
   const [reviewPage, setReviewPage] = useState(1);
   const [clockNow, setClockNow] = useState(nowISO());
+  const [exitAsking, setExitAsking] = useExitConfirm();
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth <= 680 : false);
   // The seven-column review table needs ~880px plus the page gutters. Below
   // that it can only be shown by clipping or side-scrolling it, so the card
@@ -5431,7 +5727,26 @@ export default function RezyMRVLive() {
   const dspYieldVariancePct = dspInputKg > 0 ? (dspYieldVarianceKg / dspInputKg) * 100 : 0;
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  if (!role) return <LoginScreen onLogin={r => { setRole(r); setTab("dashboard"); }} lang={lang} setLang={setLang} />;
+  const exitDialog = (
+    <ExitConfirm
+      open={exitAsking}
+      onStay={() => setExitAsking(false)}
+      onLeave={() => {
+        setExitAsking(false);
+        // Step back past our sentinel. If this tab has no earlier entry there is
+        // nothing to go back to, so close it instead where the browser allows.
+        if (window.history.length > 2) window.history.go(-2);
+        else window.close();
+      }}
+    />
+  );
+
+  if (!role) return (
+    <GpsGate>
+      <LoginScreen onLogin={r => { setRole(r); setTab("dashboard"); }} lang={lang} setLang={setLang} />
+      {exitDialog}
+    </GpsGate>
+  );
 
 	  const NAV = [
 	    { key: "dashboard", label: t("dashboard") },
@@ -5445,8 +5760,10 @@ export default function RezyMRVLive() {
   const detailHandwritten = getHandwrittenWeighing(detailView);
 
   return (
+    <GpsGate>
     <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "'DM Sans', 'Segoe UI', sans-serif", color: C.charcoal }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet" />
+      {exitDialog}
 
       {/* Toast */}
       {toast && (
@@ -6955,5 +7272,6 @@ export default function RezyMRVLive() {
 
       {/* styles injected via useEffect to avoid JSX/CSS brace conflict */}
     </div>
+    </GpsGate>
   );
 }
