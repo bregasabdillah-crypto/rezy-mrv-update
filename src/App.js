@@ -4445,9 +4445,13 @@ export default function RezyMRVLive() {
             const normalizedSb = withEvidenceAliases(sb);
             // Prefer local review state if it's already final (rejected/accepted) or further along
             // than the Sheet — avoids a stale Sheet row reverting an admin decision on reload.
+            // But ONLY while local is at least as advanced as the backend copy: a newer operator
+            // submission resets review to pending, and pinning a previous acceptance over it made
+            // that new input look admin-approved when nobody had reviewed it.
             const localReviewDone = local && (local.reviewStatus === "rejected" || local.reviewStatus === "accepted");
             const localIsAhead = local && localActivities.length > sheetActivities.length;
-            const preferLocalReview = localReviewDone || localIsAhead;
+            const backendIsAhead = local && sheetActivities.length > localActivities.length;
+            const preferLocalReview = !backendIsAhead && (localReviewDone || localIsAhead);
             return local ? withEvidenceAliases({ ...normalizedSb,
               photoDataUrl: local.photoDataUrl || normalizedSb.photoDataUrl,
 	      handwrittenWeighingIdDataUrl: local.handwrittenWeighingIdDataUrl || normalizedSb.handwrittenWeighingIdDataUrl,
@@ -4621,7 +4625,11 @@ export default function RezyMRVLive() {
           // If the operator has advanced the batch to a later stage locally, the Sheet may still
           // reflect the prior (e.g. rejected) stage — don't let that stale record bring it back.
           const localIsAhead = local && localActivities.length > sheetActivities.length;
-          const preferLocalReview = localReviewDone || localIsAhead;
+          // The mirror image matters more: when the BACKEND is ahead, another device has
+          // submitted a new stage and review is legitimately back to pending. Pinning this
+          // device's earlier "accepted" over that silently auto-approved the new input.
+          const backendIsAhead = local && sheetActivities.length > localActivities.length;
+          const preferLocalReview = !backendIsAhead && (localReviewDone || localIsAhead);
           return local ? withEvidenceAliases({
             ...normalizedSb,
             photoDataUrl: local.photoDataUrl || normalizedSb.photoDataUrl,
