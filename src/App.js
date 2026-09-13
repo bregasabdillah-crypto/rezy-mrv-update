@@ -88,9 +88,7 @@ const TRANSLATIONS = {
     lapaksLabel: "lapaks",
     spreadLabel: "spread",
     mapMarkerNote: "Tap a marker for the lapak, weight and batch count. Marker size = weight collected.",
-    mapsKeyMissing: "Google Maps key not configured",
-    mapsKeyHow: "Add REACT_APP_GOOGLE_MAPS_KEY in Vercel → Settings → Environment Variables and redeploy to show every collection point on the map.",
-    mapsLoadFailed: "Google Maps could not load. Check the API key and its allowed referrers.",
+    mapsLoadFailed: "The map could not load. Check the connection and try again.",
     gpsOutsideIndonesia: "GPS readings outside Indonesia excluded from this map — check those devices",
     selectMaterialType: "Select material type",
     selectWeighingEquip: "Select weighing equipment",
@@ -430,9 +428,7 @@ const TRANSLATIONS = {
     lapaksLabel: "lapak",
     spreadLabel: "sebaran",
     mapMarkerNote: "Ketuk penanda untuk melihat lapak, berat, dan jumlah batch. Ukuran penanda = berat yang terkumpul.",
-    mapsKeyMissing: "Kunci Google Maps belum dikonfigurasi",
-    mapsKeyHow: "Tambahkan REACT_APP_GOOGLE_MAPS_KEY di Vercel → Settings → Environment Variables lalu deploy ulang untuk menampilkan semua titik pengumpulan di peta.",
-    mapsLoadFailed: "Google Maps gagal dimuat. Periksa kunci API dan daftar referrer yang diizinkan.",
+    mapsLoadFailed: "Peta gagal dimuat. Periksa koneksi lalu coba lagi.",
     gpsOutsideIndonesia: "pembacaan GPS di luar Indonesia dikecualikan dari peta ini — periksa perangkat tersebut",
     selectMaterialType: "Pilih jenis material",
     selectWeighingEquip: "Pilih alat timbang",
@@ -3695,95 +3691,95 @@ function ChainOfCustodyPanel({ batches, lang }) {
 }
 
 // ─── Analytics Panel ──────────────────────────────────────────────────────────
-// Google Maps JS API key, injected at build time (Vercel env: REACT_APP_GOOGLE_MAPS_KEY).
-// The keyless embed can only ever show one pin, which is why the distribution used
-// to be a scatter plot instead of the real map.
-const GOOGLE_MAPS_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY || "";
-
-let gmapsPromise = null;
-function loadGoogleMaps(key) {
+// Leaflet + OpenStreetMap. Deliberately not Google Maps: the keyless Google embed
+// can only ever show a single pin, and real per-marker rendering there needs a
+// billed API key. OSM needs neither, so the map works the moment this ships.
+const LEAFLET_VER = "1.9.4";
+let leafletPromise = null;
+function loadLeaflet() {
   if (typeof window === "undefined") return Promise.reject(new Error("no window"));
-  if (window.google?.maps) return Promise.resolve(window.google.maps);
-  if (gmapsPromise) return gmapsPromise;
-  gmapsPromise = new Promise((resolve, reject) => {
-    const el = document.createElement("script");
-    el.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&loading=async`;
-    el.async = true;
-    el.onload = () => (window.google?.maps ? resolve(window.google.maps) : reject(new Error("maps unavailable")));
-    el.onerror = () => reject(new Error("maps failed to load"));
-    document.head.appendChild(el);
+  if (window.L) return Promise.resolve(window.L);
+  if (leafletPromise) return leafletPromise;
+  leafletPromise = new Promise((resolve, reject) => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = `https://unpkg.com/leaflet@${LEAFLET_VER}/dist/leaflet.css`;
+    document.head.appendChild(css);
+    const js = document.createElement("script");
+    js.src = `https://unpkg.com/leaflet@${LEAFLET_VER}/dist/leaflet.js`;
+    js.async = true;
+    js.onload = () => (window.L ? resolve(window.L) : reject(new Error("leaflet unavailable")));
+    js.onerror = () => reject(new Error("leaflet failed to load"));
+    document.head.appendChild(js);
   });
-  return gmapsPromise;
+  return leafletPromise;
 }
 
-// Live Google map: every collection point is its own marker, sized by weight, and
-// the view fits itself to the data so the spread is the map rather than a proxy.
+// Live map of every collection point. One circle per point, sized by weight, with
+// the view fitted to the data so the spread is the map itself.
 function CollectionMap({ points, t }) {
   const ref = useRef(null);
+  const mapRef = useRef(null);
+  // Track the markers we created. The effect re-runs whenever the filtered set is
+  // recomputed, and sweeping the map by instanceof left duplicates stacked on top
+  // of each other — 20 circles for 5 points after a few renders.
+  const markersRef = useRef([]);
   const [err, setErr] = useState(null);
 
   useEffect(() => {
-    if (!GOOGLE_MAPS_KEY || !ref.current || !points.length) return;
+    if (!ref.current || !points.length) return;
     let cancelled = false;
-    let markers = [];
-    loadGoogleMaps(GOOGLE_MAPS_KEY).then((maps) => {
+    loadLeaflet().then((L) => {
       if (cancelled || !ref.current) return;
-      const map = new maps.Map(ref.current, {
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
-        clickableIcons: false,
-      });
-      const bounds = new maps.LatLngBounds();
+      if (!mapRef.current) {
+        mapRef.current = L.map(ref.current, { scrollWheelZoom: false });
+        L.tileLayer(`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`, {
+          maxZoom: 19,
+          // Attribution is a condition of the OSM tile usage policy, not decoration.
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(mapRef.current);
+      }
+      const map = mapRef.current;
+      markersRef.current.forEach(m => map.removeLayer(m));
+      markersRef.current = [];
+
       const maxKg = Math.max(...points.map(p => p.kg), 1);
-      const info = new maps.InfoWindow();
+      const latLngs = [];
       points.forEach((p) => {
-        const pos = { lat: p.lat, lng: p.lng };
-        bounds.extend(pos);
-        const marker = new maps.Marker({
-          position: pos,
-          map,
-          title: `${Math.round(p.kg).toLocaleString()} kg`,
-          icon: {
-            path: maps.SymbolPath.CIRCLE,
-            // Area, not radius, tracks weight so big points do not swamp the map.
-            scale: 6 + Math.sqrt(p.kg / maxKg) * 16,
-            fillColor: C.forest,
-            fillOpacity: 0.55,
-            strokeColor: C.forest,
-            strokeWeight: 1.2,
-          },
-        });
-        marker.addListener("click", () => {
-          const who = [...p.lapaks].map(maskName).join(", ") || "—";
-          info.setContent(
+        latLngs.push([p.lat, p.lng]);
+        const who = [...p.lapaks].map(maskName).join(", ") || "\u2014";
+        const marker = L.circleMarker([p.lat, p.lng], {
+          // Radius from the square root of weight, so area tracks the figure and
+          // one heavy point does not blot out its neighbours.
+          radius: 5 + Math.sqrt(p.kg / maxKg) * 14,
+          color: C.forest,
+          weight: 1.2,
+          fillColor: C.forest,
+          fillOpacity: 0.45,
+        })
+          .bindPopup(
             `<div style="font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.5;color:#111811">
                <strong>${who}</strong><br/>
-               ${Math.round(p.kg).toLocaleString()} kg · ${p.batches}×<br/>
-               <span style="font-family:monospace;font-size:11px;color:#2d4a33">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</span>
-             </div>`);
-          info.open({ map, anchor: marker });
-        });
-        markers.push(marker);
+               ${Math.round(p.kg).toLocaleString()} kg \u00b7 ${p.batches}\u00d7<br/>
+               <a href="https://www.google.com/maps?q=${p.lat},${p.lng}" target="_blank" rel="noreferrer"
+                  style="font-family:monospace;font-size:11px;color:#1D5C2E">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</a>
+             </div>`)
+          .addTo(map);
+        markersRef.current.push(marker);
       });
-      map.fitBounds(bounds, 40);
-      // A single point would otherwise zoom to maximum.
-      if (points.length === 1) map.setZoom(15);
-    }).catch((e) => { if (!cancelled) setErr(e.message || "maps failed to load"); });
-    return () => {
-      cancelled = true;
-      markers.forEach(m => m.setMap && m.setMap(null));
-    };
+      if (latLngs.length === 1) map.setView(latLngs[0], 15);
+      else map.fitBounds(latLngs, { padding: [28, 28] });
+      // Leaflet mis-sizes itself when its container was laid out after creation.
+      setTimeout(() => { if (!cancelled && mapRef.current) mapRef.current.invalidateSize(); }, 120);
+    }).catch((e) => { if (!cancelled) setErr(e.message || "map failed to load"); });
+    return () => { cancelled = true; };
   }, [points]);
 
-  if (!GOOGLE_MAPS_KEY) {
-    return (
-      <div style={{ border: `1px solid #f0d58a`, background: "#fff8e1", borderRadius: 10, padding: "14px 16px", fontSize: 12.5, color: "#7a5800", lineHeight: 1.6 }}>
-        <strong>{t("mapsKeyMissing")}</strong>
-        <div style={{ marginTop: 4 }}>{t("mapsKeyHow")}</div>
-      </div>
-    );
-  }
+  useEffect(() => () => {
+    markersRef.current = [];
+    if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+  }, []);
+
   if (err) {
     return (
       <div style={{ border: `1px solid #f3b4ae`, background: "#fee2e2", borderRadius: 10, padding: "14px 16px", fontSize: 12.5, color: C.red }}>
@@ -3791,7 +3787,7 @@ function CollectionMap({ points, t }) {
       </div>
     );
   }
-  return <div ref={ref} style={{ width: "100%", height: 380, borderRadius: 10, border: `1px solid ${C.creamDark}`, background: C.creamMid }} />;
+  return <div ref={ref} style={{ width: "100%", height: 380, borderRadius: 10, border: `1px solid ${C.creamDark}`, background: C.creamMid, zIndex: 0 }} />;
 }
 
 function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
