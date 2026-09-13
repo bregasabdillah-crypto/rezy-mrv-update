@@ -87,10 +87,10 @@ const TRANSLATIONS = {
     distinctPoints: "distinct points",
     lapaksLabel: "lapaks",
     spreadLabel: "spread",
-    dotSizeNote: "Dot size = weight collected at that point",
-    openInMaps: "Maps",
-    openAreaInMaps: "Open collection area in Google Maps",
-    morePoints: "more points",
+    mapMarkerNote: "Tap a marker for the lapak, weight and batch count. Marker size = weight collected.",
+    mapsKeyMissing: "Google Maps key not configured",
+    mapsKeyHow: "Add REACT_APP_GOOGLE_MAPS_KEY in Vercel → Settings → Environment Variables and redeploy to show every collection point on the map.",
+    mapsLoadFailed: "Google Maps could not load. Check the API key and its allowed referrers.",
     gpsOutsideIndonesia: "GPS readings outside Indonesia excluded from this map — check those devices",
     selectMaterialType: "Select material type",
     selectWeighingEquip: "Select weighing equipment",
@@ -429,10 +429,10 @@ const TRANSLATIONS = {
     distinctPoints: "titik berbeda",
     lapaksLabel: "lapak",
     spreadLabel: "sebaran",
-    dotSizeNote: "Ukuran titik = berat yang terkumpul di titik itu",
-    openInMaps: "Peta",
-    openAreaInMaps: "Buka area pengumpulan di Google Maps",
-    morePoints: "titik lainnya",
+    mapMarkerNote: "Ketuk penanda untuk melihat lapak, berat, dan jumlah batch. Ukuran penanda = berat yang terkumpul.",
+    mapsKeyMissing: "Kunci Google Maps belum dikonfigurasi",
+    mapsKeyHow: "Tambahkan REACT_APP_GOOGLE_MAPS_KEY di Vercel → Settings → Environment Variables lalu deploy ulang untuk menampilkan semua titik pengumpulan di peta.",
+    mapsLoadFailed: "Google Maps gagal dimuat. Periksa kunci API dan daftar referrer yang diizinkan.",
     gpsOutsideIndonesia: "pembacaan GPS di luar Indonesia dikecualikan dari peta ini — periksa perangkat tersebut",
     selectMaterialType: "Pilih jenis material",
     selectWeighingEquip: "Pilih alat timbang",
@@ -3691,6 +3691,105 @@ function ChainOfCustodyPanel({ batches, lang }) {
 }
 
 // ─── Analytics Panel ──────────────────────────────────────────────────────────
+// Google Maps JS API key, injected at build time (Vercel env: REACT_APP_GOOGLE_MAPS_KEY).
+// The keyless embed can only ever show one pin, which is why the distribution used
+// to be a scatter plot instead of the real map.
+const GOOGLE_MAPS_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY || "";
+
+let gmapsPromise = null;
+function loadGoogleMaps(key) {
+  if (typeof window === "undefined") return Promise.reject(new Error("no window"));
+  if (window.google?.maps) return Promise.resolve(window.google.maps);
+  if (gmapsPromise) return gmapsPromise;
+  gmapsPromise = new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&loading=async`;
+    el.async = true;
+    el.onload = () => (window.google?.maps ? resolve(window.google.maps) : reject(new Error("maps unavailable")));
+    el.onerror = () => reject(new Error("maps failed to load"));
+    document.head.appendChild(el);
+  });
+  return gmapsPromise;
+}
+
+// Live Google map: every collection point is its own marker, sized by weight, and
+// the view fits itself to the data so the spread is the map rather than a proxy.
+function CollectionMap({ points, t }) {
+  const ref = useRef(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    if (!GOOGLE_MAPS_KEY || !ref.current || !points.length) return;
+    let cancelled = false;
+    let markers = [];
+    loadGoogleMaps(GOOGLE_MAPS_KEY).then((maps) => {
+      if (cancelled || !ref.current) return;
+      const map = new maps.Map(ref.current, {
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        clickableIcons: false,
+      });
+      const bounds = new maps.LatLngBounds();
+      const maxKg = Math.max(...points.map(p => p.kg), 1);
+      const info = new maps.InfoWindow();
+      points.forEach((p) => {
+        const pos = { lat: p.lat, lng: p.lng };
+        bounds.extend(pos);
+        const marker = new maps.Marker({
+          position: pos,
+          map,
+          title: `${Math.round(p.kg).toLocaleString()} kg`,
+          icon: {
+            path: maps.SymbolPath.CIRCLE,
+            // Area, not radius, tracks weight so big points do not swamp the map.
+            scale: 6 + Math.sqrt(p.kg / maxKg) * 16,
+            fillColor: C.forest,
+            fillOpacity: 0.55,
+            strokeColor: C.forest,
+            strokeWeight: 1.2,
+          },
+        });
+        marker.addListener("click", () => {
+          const who = [...p.lapaks].map(maskName).join(", ") || "—";
+          info.setContent(
+            `<div style="font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.5;color:#111811">
+               <strong>${who}</strong><br/>
+               ${Math.round(p.kg).toLocaleString()} kg · ${p.batches}×<br/>
+               <span style="font-family:monospace;font-size:11px;color:#2d4a33">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</span>
+             </div>`);
+          info.open({ map, anchor: marker });
+        });
+        markers.push(marker);
+      });
+      map.fitBounds(bounds, 40);
+      // A single point would otherwise zoom to maximum.
+      if (points.length === 1) map.setZoom(15);
+    }).catch((e) => { if (!cancelled) setErr(e.message || "maps failed to load"); });
+    return () => {
+      cancelled = true;
+      markers.forEach(m => m.setMap && m.setMap(null));
+    };
+  }, [points]);
+
+  if (!GOOGLE_MAPS_KEY) {
+    return (
+      <div style={{ border: `1px solid #f0d58a`, background: "#fff8e1", borderRadius: 10, padding: "14px 16px", fontSize: 12.5, color: "#7a5800", lineHeight: 1.6 }}>
+        <strong>{t("mapsKeyMissing")}</strong>
+        <div style={{ marginTop: 4 }}>{t("mapsKeyHow")}</div>
+      </div>
+    );
+  }
+  if (err) {
+    return (
+      <div style={{ border: `1px solid #f3b4ae`, background: "#fee2e2", borderRadius: 10, padding: "14px 16px", fontSize: 12.5, color: C.red }}>
+        {t("mapsLoadFailed")}
+      </div>
+    );
+  }
+  return <div ref={ref} style={{ width: "100%", height: 380, borderRadius: 10, border: `1px solid ${C.creamDark}`, background: C.creamMid }} />;
+}
+
 function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
   const t = useT(lang);
   const safeArr = Array.isArray(batches) ? batches : [];
@@ -3764,7 +3863,6 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
   const allLocationRows = Object.values(locationMap).sort((a, b) => b.kg - a.kg);
   const locationRows = allLocationRows.filter(inIndonesia);
   const excludedPoints = allLocationRows.length - locationRows.length;
-  const locMaxKg = Math.max(...locationRows.map(p => p.kg), 1);
   // Median rather than mean: a single mis-recorded point (a device reporting from
   // another country) would drag a mean centre into the ocean.
   const median = (arr) => {
@@ -3784,24 +3882,6 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
         { lat: Math.min(...plotRows.map(p => p.lat)), lng: Math.min(...plotRows.map(p => p.lng)) },
         { lat: Math.max(...plotRows.map(p => p.lat)), lng: Math.max(...plotRows.map(p => p.lng)) }) || 0
     : 0;
-  const locBounds = plotRows.reduce((acc, p) => ({
-    minLat: Math.min(acc.minLat, p.lat), maxLat: Math.max(acc.maxLat, p.lat),
-    minLng: Math.min(acc.minLng, p.lng), maxLng: Math.max(acc.maxLng, p.lng),
-  }), { minLat: 90, maxLat: -90, minLng: 180, maxLng: -180 });
-  const plot = (p) => {
-    // A single point, or a row of points sharing a latitude, would give a zero
-    // span and divide by zero; pad to ~300 m so those still render centred.
-    const spanLat = Math.max(locBounds.maxLat - locBounds.minLat, 0.003);
-    const spanLng = Math.max(locBounds.maxLng - locBounds.minLng, 0.003);
-    const midLat = (locBounds.maxLat + locBounds.minLat) / 2;
-    const midLng = (locBounds.maxLng + locBounds.minLng) / 2;
-    const clamp = (v) => Math.max(5, Math.min(95, v));
-    return {
-      // Latitude grows northwards, y grows downwards.
-      x: clamp(50 + ((p.lng - midLng) / spanLng) * 80),
-      y: clamp(50 - ((p.lat - midLat) / spanLat) * 80),
-    };
-  };
 
   // ── Pipeline stages ───────────────────────────────────────────────────────
   const PIPELINE = [
@@ -3957,65 +4037,15 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
             {locSpanKm > 0 ? ` · ${t("spreadLabel")} ${locSpanKm.toFixed(locSpanKm < 10 ? 1 : 0)} km` : ""}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 12 }}>
-            {/* Scatter of every point, sized by weight — shows the spread itself */}
-            <div style={{ border: `1px solid ${C.creamDark}`, borderRadius: 10, background: C.pageBg, padding: 8 }}>
-              <svg viewBox="0 0 100 100" style={{ width: "100%", height: 200, display: "block" }}>
-                <rect x="0" y="0" width="100" height="100" fill={C.cream} rx="3" />
-                {locationRows.map((p, i) => {
-                  const { x, y } = plot(p);
-                  const r = 1.4 + (p.kg / locMaxKg) * 3.6;
-                  return <circle key={i} cx={x} cy={y} r={r} fill={C.forest} fillOpacity="0.45" stroke={C.forest} strokeWidth="0.4" />;
-                })}
-              </svg>
-              <div style={{ fontSize: 9.5, color: C.mutedLight, textAlign: "center", marginTop: 4 }}>{t("dotSizeNote")}</div>
-            </div>
+          <CollectionMap points={locationRows} t={t} />
 
-            {/* Google Maps, centred on the median point */}
-            <div style={{ border: `1px solid ${C.creamDark}`, borderRadius: 10, overflow: "hidden", minHeight: 200 }}>
-              <iframe
-                title="collection-locations"
-                src={`https://maps.google.com/maps?q=${locCentreLat},${locCentreLng}&z=${locSpanKm > 40 ? 9 : locSpanKm > 10 ? 11 : 13}&output=embed`}
-                style={{ width: "100%", height: 216, border: 0, display: "block" }}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-            </div>
-            <a href={`https://www.google.com/maps?q=${locCentreLat},${locCentreLng}&z=13`} target="_blank" rel="noreferrer"
-               style={{ gridColumn: isMobile ? "auto" : "1 / -1", fontSize: 11.5, color: C.forest, fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
-              {t("openAreaInMaps")} →
-            </a>
-          </div>
+          <div style={{ fontSize: 11, color: C.mutedLight, textAlign: "center", marginTop: 6 }}>{t("mapMarkerNote")}</div>
 
           {excludedPoints > 0 && (
-            <div style={{ background: "#fff8e1", border: `1px solid #f0d58a`, borderRadius: 8, padding: "8px 12px", fontSize: 11.5, color: "#7a5800", marginBottom: 12, fontWeight: 600 }}>
+            <div style={{ background: "#fff8e1", border: `1px solid #f0d58a`, borderRadius: 8, padding: "8px 12px", fontSize: 11.5, color: "#7a5800", marginTop: 12, fontWeight: 600 }}>
               {excludedPoints} {t("gpsOutsideIndonesia")}
             </div>
           )}
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {locationRows.slice(0, 8).map((p, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 12, paddingBottom: 6, borderBottom: i < Math.min(locationRows.length, 8) - 1 ? `1px solid ${C.cream}` : "none" }}>
-                <span style={{ fontFamily: "'DM Mono', monospace", color: C.forest, fontWeight: 700, minWidth: 140 }}>
-                  {p.lat.toFixed(4)}, {p.lng.toFixed(4)}
-                </span>
-                <span style={{ color: C.muted, flex: 1, minWidth: 120 }}>
-                  {[...p.lapaks].map(maskName).join(", ") || "—"}
-                </span>
-                <span style={{ fontWeight: 800, color: C.charcoal }}>{Math.round(p.kg).toLocaleString()} kg</span>
-                <span style={{ color: C.mutedLight }}>{p.batches}×</span>
-                <a href={`https://www.google.com/maps?q=${p.lat},${p.lng}`} target="_blank" rel="noreferrer"
-                   style={{ fontSize: 11, color: C.forest, fontWeight: 700, textDecoration: "none", border: `1px solid ${C.creamDark}`, borderRadius: 999, padding: "2px 9px" }}>
-                  {t("openInMaps")}
-                </a>
-              </div>
-            ))}
-            {locationRows.length > 8 && (
-              <div style={{ fontSize: 11, color: C.mutedLight, paddingTop: 2 }}>
-                +{locationRows.length - 8} {t("morePoints")}
-              </div>
-            )}
-          </div>
         </Card>
       )}
 
@@ -4133,11 +4163,12 @@ function GpsGate({ children }) {
       // rejects instantly with no dialog, which is why "Try again" looked dead.
       try {
         permStatus = await navigator.permissions?.query({ name: "geolocation" });
-        if (permStatus) {
-          permStatus.onchange = () => { if (!cancelled) setAttempt(a => a + 1); };
-          if (permStatus.state === "denied") { finish("blocked"); return; }
-        }
-      } catch { /* Permissions API unavailable — fall through to a direct probe */ }
+        if (permStatus) permStatus.onchange = () => { if (!cancelled) setAttempt(a => a + 1); };
+      } catch { /* Permissions API unavailable — the probe below is what matters */ }
+
+      // Always ask, even when Permissions reports "denied". That state can be
+      // stale, and a dismissed prompt (as opposed to an explicit Block) still
+      // re-opens on a fresh call — which is the whole point of the Reload button.
 
       navigator.geolocation.getCurrentPosition(
         () => finish("ok"),
@@ -4203,20 +4234,12 @@ function GpsGate({ children }) {
             {enS.gpsChecking}
           </div>
         ) : !unsupported && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {/* Reloading is what actually applies a permission change, so it leads
-                for the blocked case; retrying alone cannot reopen the prompt. */}
-            {blocked && (
-              <Btn onClick={() => window.location.reload()} variant="primary" full>
-                <span style={{ fontWeight: 800 }}>{idS.gpsReload}</span>
-                <span style={{ fontWeight: 500, opacity: 0.85 }}> · {enS.gpsReload}</span>
-              </Btn>
-            )}
-            <Btn onClick={() => setAttempt(a => a + 1)} variant={blocked ? "ghost" : "primary"} full>
-              <span style={{ fontWeight: 800 }}>{state === "checking" ? idS.gpsAllow : idS.gpsRetry}</span>
-              <span style={{ fontWeight: 500, opacity: 0.85 }}> · {state === "checking" ? enS.gpsAllow : enS.gpsRetry}</span>
-            </Btn>
-          </div>
+          // A single action. Reload re-runs the probe from a clean page, which is
+          // the only thing that can raise the prompt again; a soft retry could not.
+          <Btn onClick={() => window.location.reload()} variant="primary" full>
+            <span style={{ fontWeight: 800 }}>{idS.gpsReload}</span>
+            <span style={{ fontWeight: 500, opacity: 0.85 }}> · {enS.gpsReload}</span>
+          </Btn>
         )}
       </div>
     </div>
