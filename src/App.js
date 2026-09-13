@@ -3693,24 +3693,25 @@ function ChainOfCustodyPanel({ batches, lang }) {
 // ─── Analytics Panel ──────────────────────────────────────────────────────────
 // Leaflet + OpenStreetMap. Deliberately not Google Maps: the keyless Google embed
 // can only ever show a single pin, and real per-marker rendering there needs a
-// billed API key. OSM needs neither, so the map works the moment this ships.
-const LEAFLET_VER = "1.9.4";
+// billed API key.
+//
+// Leaflet is bundled rather than pulled from a CDN. Loading it from unpkg failed
+// on the operators' network — the map reported "could not load" on a handset that
+// was otherwise online and syncing. A dynamic import keeps it out of the main
+// bundle, so only someone opening Analytics downloads it, and it is served from
+// our own origin and cached by the service worker like everything else.
 let leafletPromise = null;
 function loadLeaflet() {
   if (typeof window === "undefined") return Promise.reject(new Error("no window"));
   if (window.L) return Promise.resolve(window.L);
   if (leafletPromise) return leafletPromise;
-  leafletPromise = new Promise((resolve, reject) => {
-    const css = document.createElement("link");
-    css.rel = "stylesheet";
-    css.href = `https://unpkg.com/leaflet@${LEAFLET_VER}/dist/leaflet.css`;
-    document.head.appendChild(css);
-    const js = document.createElement("script");
-    js.src = `https://unpkg.com/leaflet@${LEAFLET_VER}/dist/leaflet.js`;
-    js.async = true;
-    js.onload = () => (window.L ? resolve(window.L) : reject(new Error("leaflet unavailable")));
-    js.onerror = () => reject(new Error("leaflet failed to load"));
-    document.head.appendChild(js);
+  leafletPromise = Promise.all([
+    import("leaflet"),
+    import("leaflet/dist/leaflet.css"),
+  ]).then(([mod]) => {
+    const L = mod.default || mod;
+    window.L = L;
+    return L;
   });
   return leafletPromise;
 }
