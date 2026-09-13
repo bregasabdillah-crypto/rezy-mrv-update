@@ -3239,6 +3239,10 @@ function LoginScreen({ onLogin, lang, setLang }) {
           </div>
         </a>
 
+        {/* Offered before sign-in: granting location once to the installed app is
+            better than re-granting a tab that can be blocked again. */}
+        <InstallCard compact />
+
         {/* Footer */}
         <div style={{ textAlign: "center", marginTop: 16, fontSize: 11, color: C.mutedLight }}>
           Rezycology · Sustainability &amp; Waste Solution
@@ -4093,6 +4097,10 @@ const DEVICE_STRINGS = {
     gpsDeviceOffBody: "The app may use location, but the phone itself is not providing one. Turn on Location in your phone settings — swipe down from the top and switch Location on — then tap Try again.",
     gpsUnsupported: "This browser does not support location services. Please open Rezycology MRV in Chrome or Safari.",
     gpsRetry: "Try again",
+    installTitle: "Install Rezycology MRV",
+    installBody: "Install it to the home screen and allow location once. The installed app keeps its own location permission, so a blocked browser tab stops being a problem.",
+    installIos: "Tap the Share button, then Add to Home Screen. Open it from there and allow location once.",
+    installAction: "Install",
     exitTitle: "Leave Rezycology MRV?",
     exitBody: "Any entry you have not submitted will be lost.",
     exitConfirm: "Leave",
@@ -4113,6 +4121,10 @@ const DEVICE_STRINGS = {
     gpsDeviceOffBody: "Aplikasi boleh memakai lokasi, tetapi ponselnya sendiri tidak memberikan lokasi. Nyalakan Lokasi di pengaturan ponsel — geser dari atas lalu aktifkan Lokasi — kemudian ketuk Coba lagi.",
     gpsUnsupported: "Browser ini tidak mendukung layanan lokasi. Silakan buka Rezycology MRV di Chrome atau Safari.",
     gpsRetry: "Coba lagi",
+    installTitle: "Pasang Rezycology MRV",
+    installBody: "Pasang ke layar utama lalu izinkan lokasi satu kali. Aplikasi yang terpasang punya izin lokasinya sendiri, sehingga tab browser yang diblokir tidak lagi jadi masalah.",
+    installIos: "Ketuk tombol Bagikan, lalu Tambahkan ke Layar Utama. Buka dari sana dan izinkan lokasi satu kali.",
+    installAction: "Pasang",
     exitTitle: "Keluar dari Rezycology MRV?",
     exitBody: "Isian yang belum dikirim akan hilang.",
     exitConfirm: "Keluar",
@@ -4132,6 +4144,73 @@ function deviceLang() {
 function useDeviceT() {
   const [lang] = useState(deviceLang);
   return (key) => DEVICE_STRINGS[lang]?.[key] ?? DEVICE_STRINGS.en[key] ?? key;
+}
+
+// Home-screen install. On Android an installed PWA is a WebAPK with its own
+// app-level location permission, separate from the Chrome tab's site permission —
+// so installing gives a clean prompt even when the tab has been permanently
+// blocked. That is the one route out of a blocked tab that does not require the
+// operator to find browser settings.
+function useInstallPrompt() {
+  const [deferred, setDeferred] = useState(null);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const standalone = window.matchMedia?.("(display-mode: standalone)")?.matches
+      || window.navigator.standalone === true;
+    if (standalone) { setInstalled(true); return; }
+    const onPrompt = (e) => { e.preventDefault(); setDeferred(e); };
+    const onInstalled = () => { setInstalled(true); setDeferred(null); };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  const install = async () => {
+    if (!deferred) return false;
+    deferred.prompt();
+    const choice = await deferred.userChoice.catch(() => null);
+    setDeferred(null);
+    return choice?.outcome === "accepted";
+  };
+  // iOS has no beforeinstallprompt, so Safari users get written steps instead.
+  const isIos = typeof navigator !== "undefined"
+    && /iphone|ipad|ipod/i.test(navigator.userAgent)
+    && !/crios|fxios/i.test(navigator.userAgent);
+  return { canInstall: Boolean(deferred), install, installed, isIos };
+}
+
+function InstallCard({ compact = false }) {
+  const { canInstall, install, installed, isIos } = useInstallPrompt();
+  const idS = DEVICE_STRINGS.id, enS = DEVICE_STRINGS.en;
+  if (installed) return null;
+  if (!canInstall && !isIos) return null;
+  return (
+    <div style={{
+      background: C.cream, border: `1px solid ${C.creamDark}`, borderRadius: 12,
+      padding: compact ? "12px 14px" : "14px 16px", textAlign: "left",
+      marginTop: compact ? 14 : 0, fontFamily: "'DM Sans', sans-serif",
+    }}>
+      <div style={{ fontSize: 13, fontWeight: 800, color: C.forest, lineHeight: 1.35 }}>{idS.installTitle}</div>
+      <div style={{ fontSize: 12, color: C.mutedLight, marginBottom: 6 }}>{enS.installTitle}</div>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, lineHeight: 1.5 }}>
+        {isIos ? idS.installIos : idS.installBody}
+      </div>
+      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: canInstall ? 10 : 0 }}>
+        {isIos ? enS.installIos : enS.installBody}
+      </div>
+      {canInstall && (
+        <Btn onClick={install} variant="primary" full>
+          <span style={{ fontWeight: 800 }}>{idS.installAction}</span>
+          <span style={{ fontWeight: 500, opacity: 0.85 }}> · {enS.installAction}</span>
+        </Btn>
+      )}
+    </div>
+  );
 }
 
 // Blocks the whole app until the device can actually produce a position. Every
@@ -4241,6 +4320,10 @@ function GpsGate({ children }) {
             <span style={{ fontWeight: 500, opacity: 0.85 }}> · {enS.gpsReload}</span>
           </Btn>
         )}
+
+        {/* An installed app carries its own location permission, so this works
+            even when the tab's permission is permanently blocked. */}
+        {blocked && <InstallCard compact />}
       </div>
     </div>
   );
