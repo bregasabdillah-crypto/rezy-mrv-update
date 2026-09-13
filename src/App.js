@@ -4164,41 +4164,57 @@ function GpsGate({ children }) {
   const blocked = state === "blocked";
   const deviceOff = state === "deviceOff";
   const unsupported = state === "unsupported";
-  const title = unsupported ? dt("gpsTitle")
-    : blocked ? dt("gpsDeniedTitle")
-    : deviceOff ? dt("gpsDeviceOffTitle")
-    : dt("gpsTitle");
-  const body = unsupported ? dt("gpsUnsupported")
-    : blocked ? dt("gpsDeniedBody")
-    : deviceOff ? dt("gpsDeviceOffBody")
-    : dt("gpsBody");
+  const key = unsupported ? { title: "gpsTitle", body: "gpsUnsupported" }
+    : blocked ? { title: "gpsDeniedTitle", body: "gpsDeniedBody" }
+    : deviceOff ? { title: "gpsDeviceOffTitle", body: "gpsDeviceOffBody" }
+    : { title: "gpsTitle", body: "gpsBody" };
+  // Both languages on one screen rather than picking by phone locale: an operator
+  // and whoever is helping them may not read the same one. Indonesian leads in
+  // bold, English follows underneath — neither replaces or clips the other.
+  const idS = DEVICE_STRINGS.id, enS = DEVICE_STRINGS.en;
 
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ background: C.cardBg, border: `1px solid ${C.creamDark}`, borderTop: `3px solid ${C.orange}`, borderRadius: 14, padding: "26px 24px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 1px 3px rgba(29,92,46,0.06)" }}>
+    <div style={{ minHeight: "100vh", background: C.pageBg, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "24px 20px 40px", fontFamily: "'DM Sans', sans-serif", overflowY: "auto" }}>
+      <div style={{ background: C.cardBg, border: `1px solid ${C.creamDark}`, borderTop: `3px solid ${C.orange}`, borderRadius: 14, padding: "24px 22px", maxWidth: 440, width: "100%", textAlign: "center", boxShadow: "0 1px 3px rgba(29,92,46,0.06)" }}>
         <div style={{ fontSize: 34, marginBottom: 10 }}>📍</div>
-        <h1 style={{ fontSize: 18, fontWeight: 800, color: C.forest, margin: "0 0 8px" }}>{title}</h1>
-        <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, margin: "0 0 14px" }}>{body}</p>
+
+        <h1 style={{ fontSize: 18, fontWeight: 800, color: C.forest, margin: "0 0 3px", lineHeight: 1.3 }}>{idS[key.title]}</h1>
+        <div style={{ fontSize: 13.5, fontWeight: 500, color: C.mutedLight, margin: "0 0 14px", lineHeight: 1.35 }}>{enS[key.title]}</div>
+
+        <p style={{ fontSize: 13, fontWeight: 700, color: C.charcoal, lineHeight: 1.6, margin: "0 0 4px", textAlign: "left" }}>{idS[key.body]}</p>
+        <p style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.55, margin: "0 0 14px", textAlign: "left" }}>{enS[key.body]}</p>
 
         {blocked && (
-          <ol style={{ textAlign: "left", fontSize: 12.5, color: C.charcoal, lineHeight: 1.7, margin: "0 0 16px", paddingLeft: 20 }}>
-            <li>{dt("gpsStep1")}</li>
-            <li>{dt("gpsStep2")}</li>
-            <li>{dt("gpsStep3")}</li>
+          <ol style={{ textAlign: "left", fontSize: 12.5, color: C.charcoal, lineHeight: 1.5, margin: "0 0 16px", paddingLeft: 20 }}>
+            {["gpsStep1", "gpsStep2", "gpsStep3"].map(k => (
+              <li key={k} style={{ marginBottom: 8 }}>
+                <span style={{ fontWeight: 700 }}>{idS[k]}</span>
+                <br />
+                <span style={{ color: C.muted, fontSize: 12 }}>{enS[k]}</span>
+              </li>
+            ))}
           </ol>
         )}
 
         {busy ? (
-          <div style={{ fontSize: 12, color: C.mutedLight, fontWeight: 600, padding: "10px 0" }}>{dt("gpsChecking")}</div>
+          <div style={{ fontSize: 12, color: C.mutedLight, padding: "10px 0", lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 700 }}>{idS.gpsChecking}</span>
+            <br />
+            {enS.gpsChecking}
+          </div>
         ) : !unsupported && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {/* Reloading is what actually applies a permission change, so it leads
                 for the blocked case; retrying alone cannot reopen the prompt. */}
             {blocked && (
-              <Btn onClick={() => window.location.reload()} variant="primary" full>{dt("gpsReload")}</Btn>
+              <Btn onClick={() => window.location.reload()} variant="primary" full>
+                <span style={{ fontWeight: 800 }}>{idS.gpsReload}</span>
+                <span style={{ fontWeight: 500, opacity: 0.85 }}> · {enS.gpsReload}</span>
+              </Btn>
             )}
             <Btn onClick={() => setAttempt(a => a + 1)} variant={blocked ? "ghost" : "primary"} full>
-              {state === "checking" ? dt("gpsAllow") : dt("gpsRetry")}
+              <span style={{ fontWeight: 800 }}>{state === "checking" ? idS.gpsAllow : idS.gpsRetry}</span>
+              <span style={{ fontWeight: 500, opacity: 0.85 }}> · {state === "checking" ? enS.gpsAllow : enS.gpsRetry}</span>
             </Btn>
           </div>
         )}
