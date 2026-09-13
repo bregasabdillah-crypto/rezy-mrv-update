@@ -846,7 +846,7 @@ const PICKUP_VEHICLES = [
   "Suzuki Carry B 8124 KZP",
   "Mitsubishi L300 B 7642 TQA",
   "Isuzu Traga B 9038 KCN",
-  "B 9482 WAF",
+  "Grand Max B 9482 WAF",
 ];
 const PROCESSING_FACILITIES = [
   "Hub Depok Cinangka",
