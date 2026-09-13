@@ -81,6 +81,8 @@ const TRANSLATIONS = {
     notesPlaceholder: "Condition of batch, contamination notes, etc.",
     collectionPhoto: "Collection Photo (chain-of-custody evidence)",
     enterLapakName: "Enter lapak name",
+    selectEowProcess: "Select End-of-Waste process",
+    selectFacility: "Select facility",
     endToEndYield: "End-to-end yield",
     completedLinesOnly: "completed lines only",
     stillInProgressKg: "Still in progress",
@@ -407,6 +409,8 @@ const TRANSLATIONS = {
     notesPlaceholder: "Kondisi batch, catatan kontaminasi, dll.",
     collectionPhoto: "Foto Pengumpulan (bukti chain-of-custody)",
     enterLapakName: "Masukkan nama lapak",
+    selectEowProcess: "Pilih proses Akhir Limbah",
+    selectFacility: "Pilih fasilitas",
     endToEndYield: "Yield ujung ke ujung",
     completedLinesOnly: "hanya baris yang selesai",
     stillInProgressKg: "Masih berjalan",
@@ -3906,7 +3910,7 @@ export default function RezyMRVLive() {
   const [oft, setOft] = useState({ selectedLines: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
   const [oftGeo, setOftGeo] = useState({ lat: "", lng: "" });
   const [offtakerPage, setOfftakerPage] = useState(0);
-  const [dsp, setDsp] = useState({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+  const [dsp, setDsp] = useState({ facility: "", facilityOther: "", eowProcess: "", processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
   const [dspGeo, setDspGeo] = useState({ lat: "", lng: "" });
   // Signatures per stage
   const [sigCol,   setSigCol]   = useState(null); // Collection
@@ -4419,7 +4423,7 @@ export default function RezyMRVLive() {
     setPrcGeo({ lat: "", lng: "" });
     setOft({ selectedLines: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
     setOftGeo({ lat: "", lng: "" });
-    setDsp({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+    setDsp({ facility: "", facilityOther: "", eowProcess: "", processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setDspGeo({ lat: "", lng: "" });
     setSigCol(null);
     setSigTrn(null);
@@ -5231,7 +5235,7 @@ export default function RezyMRVLive() {
     setPrcGeo({ lat: "", lng: "" });
     setOft({ selectedLines: [], materials: [{ feedstockType: OFFTAKER_FEEDSTOCK_TYPES[0], weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: OFFTAKER_PLATE_NUMBERS[0], photoDataUrl: null });
     setOftGeo({ lat: "", lng: "" });
-    setDsp({ facility: "", facilityOther: "", eowProcess: EOW_PROCESSES[0], processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+    setDsp({ facility: "", facilityOther: "", eowProcess: "", processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setDspGeo({ lat: "", lng: "" });
     setSigCol(null); setSigTrn(null); setSigPrc(null); setSigOft(null); setSigDsp(null); setSigVrf(null); setSigCred(null);
     setTab("records");
@@ -6290,7 +6294,7 @@ export default function RezyMRVLive() {
                       )}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
-                      <Sel label={t("downstreamFacility")} value={dsp.facility} onChange={v => setDsp(p=>({...p,facility:v}))} options={DOWNSTREAM_FACILITIES} required />
+                      <Sel label={t("downstreamFacility")} value={dsp.facility} onChange={v => setDsp(p=>({...p,facility:v}))} options={[{ value: "", label: t("selectFacility") }, ...DOWNSTREAM_FACILITIES.map(f => ({ value: f, label: f }))]} required />
                       {dsp.facility === "Other" && (
                         <Inp label={t("downstreamFacilityOther")} value={dsp.facilityOther} onChange={v => setDsp(p=>({...p,facilityOther:v}))} placeholder={t("enterFacilityName")} required />
                       )}
@@ -6306,7 +6310,7 @@ export default function RezyMRVLive() {
                           />
                         );
                       })()}
-                      <Sel label={t("eowProcess")} value={dsp.eowProcess} onChange={v => setDsp(p=>({...p,eowProcess:v}))} options={EOW_PROCESS_OPTIONS} required />
+                      <Sel label={t("eowProcess")} value={dsp.eowProcess} onChange={v => setDsp(p=>({...p,eowProcess:v}))} options={[{ value: "", label: t("selectEowProcess") }, ...EOW_PROCESS_OPTIONS]} required />
                       <Inp label={t("processingTimestamp")} value={jakartaNowLabel(clockNow)} onChange={() => {}} disabled />
                       {SHOW_MAP_PICKER && <MapPicker value={dspGeo} onChange={setDspGeo} lang={lang} />}
                     </div>
