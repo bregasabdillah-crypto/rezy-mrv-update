@@ -911,6 +911,25 @@ const OFFTAKER_TO_FEEDSTOCK_KEYWORD = {
   "PP Mixed gabrug (Baled-press)": "Gabrug",
   "HDPE (Flakes)": "HDPE",
 };
+// Resolved by rule first, then the table. Any off-taker product whose name
+// carries "PP Gelas" should draw on every PP Gelas grade — A, B and Montea —
+// rather than needing one table entry per product variant.
+function feedstockKeywordFor(offtakerType) {
+  const name = String(offtakerType || "");
+  if (name.includes("PP Gelas")) return "PP Gelas";
+  return OFFTAKER_TO_FEEDSTOCK_KEYWORD[name] || null;
+}
+
+// Old material names kept in already-recorded batches, shown under their current
+// equivalent. Display only: the stored value is never rewritten, because it is
+// what the operator actually recorded and it feeds the record hash.
+const LEGACY_FEEDSTOCK_ALIASES = {
+  "PET (Rigid)": "PET Bodong Mix",
+};
+function displayFeedstock(name) {
+  const key = String(name || "");
+  return LEGACY_FEEDSTOCK_ALIASES[key] || key;
+}
 const OFFTAKER_PLATE_NUMBERS = [
   "B 9022 WAC",
   "B 9501 WAA",
@@ -3404,7 +3423,7 @@ function shippedLineIndexes(batch) {
     else legacy.push(e);
   }
   for (const e of legacy) {
-    const keyword = OFFTAKER_TO_FEEDSTOCK_KEYWORD[e.feedstockType];
+    const keyword = feedstockKeywordFor(e.feedstockType);
     const byKeyword = keyword
       ? lines.find(l => !shipped.has(String(l.index)) && String(l.feedstockType || "").includes(keyword))
       : null;
@@ -3723,7 +3742,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
         <div style={{ padding: "14px 18px 4px", display: "flex", flexWrap: "wrap", gap: 8 }}>
           {mats.map((m, i) => (
             <div key={i} style={{ flex: "1 1 160px", background: C.white, border: `1px solid ${C.creamMid}`, borderRadius: 8, padding: "8px 12px", display: "flex", justifyContent: "space-between", gap: 8 }}>
-              <span style={{ fontSize: 12.5, color: C.charcoal }}>{m.feedstockType}</span>
+              <span style={{ fontSize: 12.5, color: C.charcoal }}>{displayFeedstock(m.feedstockType)}</span>
               <span style={{ fontSize: 12.5, color: C.forest, fontWeight: 700, whiteSpace: "nowrap" }}>{Number(m.weightKg).toLocaleString()} kg</span>
             </div>
           ))}
@@ -3918,7 +3937,7 @@ function AnalyticsPanel({ batches, isMobile = false, lang = "en" }) {
   analyticsRows.forEach(b => {
     const materials = Array.isArray(b.materials) && b.materials.length ? b.materials : [{ feedstockType: b.feedstockType, weightKg: b.weightKg }];
     materials.forEach(m => {
-      const key = m.feedstockType || "Unknown";
+      const key = displayFeedstock(m.feedstockType) || "Unknown";
       feedstockMap[key] = (feedstockMap[key] || 0) + (Number(m.weightKg) || 0);
     });
   });
@@ -4669,7 +4688,7 @@ export default function RezyMRVLive() {
     hasUnshippedLine(b));
   // Filter eligible batches to those with a material line matching the selected off-taker feedstock type's keyword
   // and/or the selected processing facility
-  const offtakerSelectedKeywords = [...new Set((oft.materials || []).map(m => OFFTAKER_TO_FEEDSTOCK_KEYWORD[m.feedstockType]).filter(Boolean))];
+  const offtakerSelectedKeywords = [...new Set((oft.materials || []).map(m => feedstockKeywordFor(m.feedstockType)).filter(Boolean))];
   const offtakerSelectedFacilities = [...new Set((oft.materials || []).map(m => m.processor).filter(Boolean))];
   const offtakerLineMatchesFilter = (l) => {
     const kwOk = !offtakerSelectedKeywords.length || offtakerSelectedKeywords.some(k => (l.feedstockType || "").includes(k));
@@ -6161,7 +6180,7 @@ export default function RezyMRVLive() {
                 [t("notesLabel"), detailView.notes],
                 ["EoW Process", eowLabel(detailView.eowProcess)],
                 [t("procEndDate"), fmtDateTime(detailView.processingEndDate)],
-                ["Material Processed", detailView.processedFeedstockType],
+                ["Material Processed", displayFeedstock(detailView.processedFeedstockType)],
                 ["Accepted Weight", detailView.acceptedWeightKg ? `${Number(detailView.acceptedWeightKg).toLocaleString()} kg` : ""],
                 ["Rejected Weight", detailView.rejectedWeightKg ? `${Number(detailView.rejectedWeightKg).toLocaleString()} kg` : ""],
                 [t("offtakerTransportRef"), detailView.offtakerTransportRef],
@@ -6209,7 +6228,7 @@ export default function RezyMRVLive() {
                 <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>Batch Material Lines</div>
                 {detailView.materials.map((m, idx) => (
                   <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: detailView.detailMaterialIndex === (m.index || idx + 1) ? C.forest : C.muted, fontWeight: detailView.detailMaterialIndex === (m.index || idx + 1) ? 800 : 600 }}>
-                    <span>{m.index || idx + 1}. {m.feedstockType}</span>
+                    <span>{m.index || idx + 1}. {displayFeedstock(m.feedstockType)}</span>
                     <span>{Number(m.weightKg).toLocaleString()} kg</span>
                   </div>
                 ))}
@@ -6239,7 +6258,7 @@ export default function RezyMRVLive() {
                 <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>Offtaker Transport Material Lines</div>
                 {detailView.offtakerMaterials.map((m, idx) => (
                   <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.muted, fontWeight: 600 }}>
-                    <span>{m.index || idx + 1}. {m.feedstockType}</span>
+                    <span>{m.index || idx + 1}. {displayFeedstock(m.feedstockType)}</span>
                     <span>{Number(m.weightKg).toLocaleString()} kg</span>
                   </div>
                 ))}
@@ -6536,7 +6555,7 @@ export default function RezyMRVLive() {
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                           <div>
                             <span style={{ fontFamily: "'DM Mono', monospace", color: C.forest, fontWeight: 700, fontSize: 12 }}>{b.batchId}</span>
-                            <span style={{ color: C.muted, marginLeft: 10, fontSize: 12 }}>{material.feedstockType || b.feedstockType} · {Number(material.weightKg ?? b.weightKg).toLocaleString()} kg</span>
+                            <span style={{ color: C.muted, marginLeft: 10, fontSize: 12 }}>{displayFeedstock(material.feedstockType || b.feedstockType)} · {Number(material.weightKg ?? b.weightKg).toLocaleString()} kg</span>
                           </div>
                           <Badge status={row.status || b.status} lang={lang} />
                         </div>
@@ -6887,7 +6906,7 @@ export default function RezyMRVLive() {
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ fontSize: 13, fontWeight: 700, color: C.charcoal, fontFamily: "'DM Mono', monospace" }}>{b.batchId} · M{line.index}</div>
                                     <div style={{ fontSize: 11, color: C.muted }}>{fmtDate(b.collectionDate)} · {b.collectorId}</div>
-                                    <div style={{ fontSize: 11, color: C.muted }}>{line.feedstockType} · {Number(line.weightKg || 0).toLocaleString()} kg{line.processor ? ` · ${line.processor}` : ""}</div>
+                                    <div style={{ fontSize: 11, color: C.muted }}>{displayFeedstock(line.feedstockType)} · {Number(line.weightKg || 0).toLocaleString()} kg{line.processor ? ` · ${line.processor}` : ""}</div>
                                   </div>
                                   {checked && <span style={{ fontSize: 11, fontWeight: 800, color: C.forest, flexShrink: 0 }}>{t("addedLabel")}</span>}
                                 </label>
@@ -6915,7 +6934,7 @@ export default function RezyMRVLive() {
                           {offtakerSelectedLines.map(({ b, line, key }) => (
                             <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                               <span style={{ fontFamily: "'DM Mono', monospace", color: C.forest, fontWeight: 700 }}>{b.batchId} · M{line.index}</span>
-                              <span style={{ flex: 1, textAlign: isMobile ? "left" : "right" }}>{line.feedstockType} · {Number(line.weightKg || 0).toLocaleString()} kg</span>
+                              <span style={{ flex: 1, textAlign: isMobile ? "left" : "right" }}>{displayFeedstock(line.feedstockType)} · {Number(line.weightKg || 0).toLocaleString()} kg</span>
                               <Btn small onClick={() => setOft(p => ({ ...p, selectedLines: (p.selectedLines || []).filter(s => `${s.batchRef}::${s.index}` !== key) }))} variant="ghost">{t("remove")}</Btn>
                             </div>
                           ))}
@@ -7122,7 +7141,7 @@ export default function RezyMRVLive() {
 	                          <tr key={b.id} style={{ background: i % 2 === 0 ? C.cardBg : C.creamMid, borderBottom: i === pagedReviewBatches.length - 1 ? "none" : `1px solid ${C.creamDark}` }}>
 	                            <td onClick={() => setDetailView(detailForMaterial(b, rowMaterial.material, rowMaterial.index))} style={{ padding: "10px", fontFamily: "'DM Mono', monospace", fontSize: 10, color: C.forest, fontWeight: 700, lineHeight: 1.25, overflowWrap: "anywhere", cursor: "pointer" }}>{b.batchId}</td>
 	                            <td style={{ padding: "10px" }}><Badge status={b.status} lang={lang} /></td>
-	                            <td style={{ padding: "10px", fontSize: 11, lineHeight: 1.25, overflowWrap: "anywhere" }}>{rowMaterial.feedstockType}{rowMaterial.index ? ` (M${rowMaterial.index})` : ""}</td>
+	                            <td style={{ padding: "10px", fontSize: 11, lineHeight: 1.25, overflowWrap: "anywhere" }}>{displayFeedstock(rowMaterial.feedstockType)}{rowMaterial.index ? ` (M${rowMaterial.index})` : ""}</td>
 	                            <td style={{ padding: "10px", fontSize: 11, fontWeight: 800, lineHeight: 1.25, overflowWrap: "anywhere" }}>{Number(rowMaterial.weightKg || 0).toLocaleString()} kg</td>
 	                            <td style={{ padding: "10px", fontSize: 10, color: C.muted, overflowWrap: "anywhere" }}>{latestActivity.actor || b.loggedBy || "-"}</td>
 	                            <td style={{ padding: "10px", fontSize: 10, color: C.muted, lineHeight: 1.35 }}>{fmtDateTime(latestActivity.ts || b.createdAt)}</td>
@@ -7162,7 +7181,7 @@ export default function RezyMRVLive() {
 	                    <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "flex-start", gap: 8, marginBottom: 12 }}>
 	                      <div style={{ minWidth: 0 }}>
 	                        <div style={{ fontFamily: "'DM Mono', monospace", color: C.forest, fontWeight: 700, fontSize: 13 }}>{b.batchId}</div>
-	                        <div style={{ fontSize: isMobile ? 13 : 15, lineHeight: 1.3, fontWeight: 700, color: C.charcoal, marginTop: 2, overflowWrap: "anywhere" }}>{b.reviewStage || b.status} input · {rowMaterial.feedstockType}{rowMaterial.index ? ` (M${rowMaterial.index})` : ""} · {Number(rowMaterial.weightKg || 0).toLocaleString()} kg</div>
+	                        <div style={{ fontSize: isMobile ? 13 : 15, lineHeight: 1.3, fontWeight: 700, color: C.charcoal, marginTop: 2, overflowWrap: "anywhere" }}>{b.reviewStage || b.status} input · {displayFeedstock(rowMaterial.feedstockType)}{rowMaterial.index ? ` (M${rowMaterial.index})` : ""} · {Number(rowMaterial.weightKg || 0).toLocaleString()} kg</div>
 	                      </div>
 	                      <div style={{ alignSelf: isMobile ? "flex-start" : "auto" }}><Badge status={b.status} lang={lang} /></div>
                     </div>
@@ -7327,7 +7346,7 @@ export default function RezyMRVLive() {
                             {isMobile ? (
                               <>
                                 <td style={{ padding: "12px 6px", fontFamily: "'DM Mono', monospace", fontSize: 9, color: C.forest, fontWeight: 800, lineHeight: 1.25, overflowWrap: "anywhere", verticalAlign: "middle" }}>{b.batchId}</td>
-                                <td style={{ padding: "12px 6px", fontSize: 10, lineHeight: 1.25, overflowWrap: "anywhere", verticalAlign: "middle" }}>{material.feedstockType || b.feedstockType}</td>
+                                <td style={{ padding: "12px 6px", fontSize: 10, lineHeight: 1.25, overflowWrap: "anywhere", verticalAlign: "middle" }}>{displayFeedstock(material.feedstockType || b.feedstockType)}</td>
                                 <td style={{ padding: "12px 6px", fontSize: 10, fontWeight: 800, lineHeight: 1.25, verticalAlign: "middle" }}>{Number(material.weightKg ?? b.weightKg).toLocaleString()}</td>
                                 <td style={{ padding: "12px 4px", verticalAlign: "middle" }}>
                                   <span style={{ display: "inline-flex", maxWidth: "100%", borderRadius: 999, padding: "5px 7px", background: activityStatus(row.status) === "rejected" ? "#fee2e2" : activityStatus(row.status) === "transport" ? "#e8f1ff" : activityStatus(row.status) === "processing" ? "#fff1bf" : "#fff4e4", color: activityStatus(row.status) === "rejected" ? C.red : activityStatus(row.status) === "transport" ? C.blue : activityStatus(row.status) === "processing" ? "#92600a" : C.orange, fontSize: 8, fontWeight: 900, letterSpacing: 0.5, fontFamily: "'DM Mono', monospace", whiteSpace: "normal", lineHeight: 1.15, textAlign: "center", overflowWrap: "anywhere" }}>
@@ -7340,7 +7359,7 @@ export default function RezyMRVLive() {
                             ) : (
                               <>
                                 <td style={{ padding: "10px", fontFamily: "'DM Mono', monospace", fontSize: 10, color: C.forest, fontWeight: 700, lineHeight: 1.25, overflowWrap: "anywhere" }}>{b.batchId}</td>
-                                <td style={{ padding: "10px", fontSize: 11, lineHeight: 1.25, overflowWrap: "anywhere" }}>{material.feedstockType || b.feedstockType}</td>
+                                <td style={{ padding: "10px", fontSize: 11, lineHeight: 1.25, overflowWrap: "anywhere" }}>{displayFeedstock(material.feedstockType || b.feedstockType)}</td>
                                 <td style={{ padding: "10px", fontSize: 11, fontWeight: 700, lineHeight: 1.25 }}>{Number(material.weightKg ?? b.weightKg).toLocaleString()} kg</td>
                                 <td style={{ padding: "10px", fontSize: 10, color: C.muted, overflowWrap: "anywhere" }}>{b.collectorId || "-"}</td>
                                 <td style={{ padding: "10px", fontSize: 10, color: C.muted, overflowWrap: "anywhere" }}>{row.inputter}</td>
