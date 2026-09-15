@@ -4322,7 +4322,6 @@ const DEVICE_STRINGS = {
     gpsRetry: "Try again",
     installTitle: "Install Rezycology MRV",
     installBody: "Install it to the home screen and allow location once. The installed app keeps its own location permission, so a blocked browser tab stops being a problem.",
-    installIos: "Tap the Share button, then Add to Home Screen. Open it from there and allow location once.",
     installAction: "Install",
     exitTitle: "Leave Rezycology MRV?",
     exitBody: "Any entry you have not submitted will be lost.",
@@ -4346,7 +4345,6 @@ const DEVICE_STRINGS = {
     gpsRetry: "Coba lagi",
     installTitle: "Pasang Rezycology MRV",
     installBody: "Pasang ke layar utama lalu izinkan lokasi satu kali. Aplikasi yang terpasang punya izin lokasinya sendiri, sehingga tab browser yang diblokir tidak lagi jadi masalah.",
-    installIos: "Ketuk tombol Bagikan, lalu Tambahkan ke Layar Utama. Buka dari sana dan izinkan lokasi satu kali.",
     installAction: "Pasang",
     exitTitle: "Keluar dari Rezycology MRV?",
     exitBody: "Isian yang belum dikirim akan hilang.",
@@ -4411,18 +4409,17 @@ function useInstallPrompt() {
     if (typeof window !== "undefined") window.__rezyInstallEvent = null;
     return choice?.outcome === "accepted";
   };
-  // iOS has no beforeinstallprompt, so Safari users get written steps instead.
-  const isIos = typeof navigator !== "undefined"
-    && /iphone|ipad|ipod/i.test(navigator.userAgent)
-    && !/crios|fxios/i.test(navigator.userAgent);
-  return { canInstall: Boolean(deferred), install, installed, isIos };
+  return { canInstall: Boolean(deferred), install, installed };
 }
 
 function InstallCard({ compact = false, spaceBelow = false }) {
-  const { canInstall, install, installed, isIos } = useInstallPrompt();
+  const { canInstall, install, installed } = useInstallPrompt();
   const idS = DEVICE_STRINGS.id, enS = DEVICE_STRINGS.en;
   if (installed) return null;
-  if (!canInstall && !isIos) return null;
+  // Only shown where there is a real Install button to press. iOS has no
+  // beforeinstallprompt, and a card of written Share-menu steps with nothing to
+  // tap was just noise on the screen.
+  if (!canInstall) return null;
   return (
     <div style={{
       background: C.cream, border: `1px solid ${C.creamDark}`, borderRadius: 12,
@@ -4436,10 +4433,10 @@ function InstallCard({ compact = false, spaceBelow = false }) {
       <div style={{ fontSize: 13, fontWeight: 800, color: C.forest, lineHeight: 1.35 }}>{idS.installTitle}</div>
       <div style={{ fontSize: 12, color: C.mutedLight, marginBottom: 6 }}>{enS.installTitle}</div>
       <div style={{ fontSize: 12.5, fontWeight: 700, color: C.charcoal, lineHeight: 1.5 }}>
-        {isIos ? idS.installIos : idS.installBody}
+        {idS.installBody}
       </div>
-      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: canInstall ? 10 : 0 }}>
-        {isIos ? enS.installIos : enS.installBody}
+      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>
+        {enS.installBody}
       </div>
       {canInstall && (
         <Btn onClick={install} variant="primary" full>
@@ -4563,6 +4560,109 @@ function GpsGate({ children }) {
             even when the tab's permission is permanently blocked. */}
         {blocked && <InstallCard compact />}
       </div>
+    </div>
+  );
+}
+
+// One-line tab bar. It scrolls sideways, but never relies on the browser giving
+// the user a way to do that: Safari shows no scrollbar on an overflow-x strip
+// and maps no wheel to it, so on a Mac with a mouse the right-hand tabs were
+// unreachable. The ‹ › buttons drive scrollLeft directly, which works with any
+// input device in any browser, and the active tab is always pulled into view.
+function NavTabs({ items, activeKey, onSelect }) {
+  const scroller = useRef(null);
+  const [edge, setEdge] = useState({ over: false, left: false, right: false });
+
+  const measure = useCallback(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setEdge({ over: max > 2, left: el.scrollLeft > 2, right: el.scrollLeft < max - 2 });
+  }, []);
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    // Labels arrive with the font, which can change the widths after first paint.
+    const t = setTimeout(measure, 400);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+      clearTimeout(t);
+    };
+  }, [measure, items.length]);
+
+  // Keep the selected tab visible. Done by hand rather than scrollIntoView,
+  // which would also scroll the page vertically.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const active = el.querySelector('[data-active="true"]');
+    if (active) {
+      const left = active.offsetLeft;
+      const right = left + active.offsetWidth;
+      if (left < el.scrollLeft) el.scrollTo({ left: Math.max(0, left - 12), behavior: "smooth" });
+      else if (right > el.scrollLeft + el.clientWidth) el.scrollTo({ left: right - el.clientWidth + 12, behavior: "smooth" });
+    }
+    measure();
+  }, [activeKey, measure]);
+
+  const nudge = (dir) => {
+    const el = scroller.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(140, el.clientWidth * 0.6), behavior: "smooth" });
+  };
+
+  const arrow = (dir, enabled) => (
+    <button
+      type="button"
+      onClick={() => nudge(dir)}
+      disabled={!enabled}
+      aria-label={dir < 0 ? "Scroll tabs left" : "Scroll tabs right"}
+      style={{
+        flexShrink: 0, width: 30, alignSelf: "stretch",
+        background: C.white, border: "none",
+        [dir < 0 ? "borderRight" : "borderLeft"]: `1px solid ${C.creamDark}`,
+        color: enabled ? C.forest : C.creamDark,
+        cursor: enabled ? "pointer" : "default",
+        fontSize: 17, fontWeight: 700, lineHeight: 1, fontFamily: "inherit",
+        padding: 0,
+      }}>{dir < 0 ? "‹" : "›"}</button>
+  );
+
+  return (
+    <div style={{ display: "flex", alignItems: "stretch", borderTop: `1px solid ${C.creamDark}`, background: C.white }}>
+      {edge.over && arrow(-1, edge.left)}
+      <div
+        ref={scroller}
+        data-navtabs=""
+        style={{
+          display: "flex", flexWrap: "nowrap", overflowX: "auto", overflowY: "hidden",
+          flex: 1, minWidth: 0,
+          scrollbarWidth: "none", msOverflowStyle: "none",
+          WebkitOverflowScrolling: "touch", overscrollBehaviorX: "contain",
+          paddingLeft: 12,
+        }}>
+        {items.map(n => (
+          <button key={n.key} data-active={activeKey === n.key} onClick={() => onSelect(n)} style={{
+            background: "transparent",
+            color: activeKey === n.key ? C.forest : C.navInactive,
+            borderBottom: activeKey === n.key ? `2px solid ${C.orange}` : "2px solid transparent",
+            borderTop: "none", borderLeft: "none", borderRight: "none",
+            padding: "10px 14px",
+            cursor: "pointer", fontSize: 12, fontWeight: activeKey === n.key ? 700 : 500,
+            fontFamily: "inherit", whiteSpace: "nowrap",
+            flexShrink: 0, transition: "color 0.15s",
+          }}>{n.label}</button>
+        ))}
+        {/* Trailing padding on a scroll container is dropped by WebKit, so the
+            last tab would sit flush against the edge. A spacer is honoured. */}
+        <div style={{ flexShrink: 0, width: 12 }} aria-hidden="true" />
+      </div>
+      {edge.over && arrow(1, edge.right)}
     </div>
   );
 }
@@ -4763,6 +4863,13 @@ export default function RezyMRVLive() {
 
   const roleObj = role ? ROLES[role] : null;
   const canAccess = (t) => {
+    // Analytics is admin-only by role already — no operator role carries
+    // "settings" access. It was additionally behind the per-device unlock, but
+    // that unlock is localStorage, so it is per browser: an admin signing in
+    // from a second browser found the tab simply missing, with no way to reach
+    // it. The unlock exists to keep the review queue and the backend URL off a
+    // shared operator phone; a read-only dashboard needs no such protection.
+    if (t === "analytics") return Boolean(roleObj?.access.includes("settings"));
     if (!roleObj?.access.includes(t)) return false;
     if (t === "verify") return isAdminReviewDevice;
     if (t === "settings") return isSettingsDevice;
@@ -6216,7 +6323,7 @@ export default function RezyMRVLive() {
 	    { key: "verify",    label: t("adminReviewTitle"), gate: "verify" },
 		    { key: "records",   label: t("records"), gate: "records" },
 	    { key: "custody",   label: t("chainOfCustody"), gate: "custody" },
-	    { key: "analytics", label: t("analyticsTitle"), gate: "settings" },
+	    { key: "analytics", label: t("analyticsTitle"), gate: "analytics" },
 	    { key: "settings",  label: t("settings"),  gate: "settings" },
   ].filter(n => !n.gate || canAccess(n.gate));
   const detailHandwritten = getHandwrittenWeighing(detailView);
@@ -6543,25 +6650,12 @@ export default function RezyMRVLive() {
             <button onClick={() => setRole(null)} style={{ background: C.creamDark, border: "none", color: C.muted, cursor: "pointer", fontSize: 10, fontFamily: "inherit", borderRadius: 5, padding: "3px 8px", fontWeight: 600 }}>{t("out")}</button>
           </div>
         </div>
-        {/* Nav row — wraps onto a second line rather than scrolling sideways.
-            As a scroll strip the right-hand tabs were unreachable in Safari:
-            it gives an overflow-x container no visible scrollbar and no wheel
-            mapping, so with a mouse there is no gesture that reaches them, and
-            an admin has seven tabs. Wrapping needs no gesture in any browser. */}
-        <div style={{ display: "flex", flexWrap: "wrap", padding: "0 12px", borderTop: `1px solid ${C.creamDark}` }}>
-          {NAV.map(n => (
-            <button key={n.key} onClick={() => n.key === "log" ? openNewBatch() : setTab(n.key)} style={{
-              background: "transparent",
-              color: tab === n.key ? C.forest : C.navInactive,
-              borderBottom: tab === n.key ? `2px solid ${C.orange}` : "2px solid transparent",
-              borderTop: "none", borderLeft: "none", borderRight: "none",
-              padding: "10px 14px",
-              cursor: "pointer", fontSize: 12, fontWeight: tab === n.key ? 700 : 500,
-              fontFamily: "inherit", whiteSpace: "nowrap",
-              flexShrink: 0, transition: "all 0.15s",
-            }}>{n.label}</button>
-          ))}
-        </div>
+        {/* Nav row */}
+        <NavTabs
+          items={NAV}
+          activeKey={tab}
+          onSelect={(n) => (n.key === "log" ? openNewBatch() : setTab(n.key))}
+        />
       </div>
 
       {loading ? (
@@ -6591,10 +6685,6 @@ export default function RezyMRVLive() {
                 <p style={{ color: C.muted, fontSize: 13, marginTop: 3 }}>{t("livePilot")} <strong style={{ color: C.charcoal }}>{roleObj.name}</strong></p>
               </div>
 
-              {/* Offered here too, not only before sign-in: an operator who is
-                  already working is the one who needs the installed app, and
-                  the card removes itself once it is installed. */}
-              <InstallCard compact spaceBelow />
 
 	              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 20 }}>
 	                {[

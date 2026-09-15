@@ -14,6 +14,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    /* The tab strip carries its own ‹ › controls, so the native bar would only
+       steal a few pixels of height. Cannot be set inline from React. */
+    [data-navtabs]::-webkit-scrollbar { display: none; }
+  </style>
 </head>
 <body style="margin:0;padding:0;background:#E4EEE4;">
   <!--

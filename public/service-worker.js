@@ -1,7 +1,7 @@
 // Bumped on deploy so activate() purges the previous cache. A stale entry for
 // "/" is the dangerous one: it points at a bundle hash that no longer exists,
 // so the app never mounts and the launch screen hangs.
-const CACHE_NAME = "rezy-mrv-pwa-v16";
+const CACHE_NAME = "rezy-mrv-pwa-v17";
 const APP_SHELL = [
   "/",
   "/offline.html",
