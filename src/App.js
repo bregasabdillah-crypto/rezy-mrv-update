@@ -7611,7 +7611,10 @@ export default function RezyMRVLive() {
           )}
 
           {/* ════════════════ ANALYTICS ════════════════ */}
-          {tab === "analytics" && canAccess("settings") && (
+          {/* Guarded on its own key, like every other tab. Checking "settings"
+              here while the nav checked "analytics" is what rendered the tab
+              into an empty page on a browser that was never device-unlocked. */}
+          {tab === "analytics" && canAccess("analytics") && (
             <AnalyticsPanel batches={visibleBatches} sheetsUrl={sheetsUrl} isMobile={isMobile} lang={lang} />
           )}
 
