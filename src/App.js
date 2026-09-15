@@ -6528,8 +6528,12 @@ export default function RezyMRVLive() {
             <button onClick={() => setRole(null)} style={{ background: C.creamDark, border: "none", color: C.muted, cursor: "pointer", fontSize: 10, fontFamily: "inherit", borderRadius: 5, padding: "3px 8px", fontWeight: 600 }}>{t("out")}</button>
           </div>
         </div>
-        {/* Nav row */}
-        <div style={{ display: "flex", overflowX: "auto", padding: "0 12px", borderTop: `1px solid ${C.creamDark}` }}>
+        {/* Nav row — wraps onto a second line rather than scrolling sideways.
+            As a scroll strip the right-hand tabs were unreachable in Safari:
+            it gives an overflow-x container no visible scrollbar and no wheel
+            mapping, so with a mouse there is no gesture that reaches them, and
+            an admin has seven tabs. Wrapping needs no gesture in any browser. */}
+        <div style={{ display: "flex", flexWrap: "wrap", padding: "0 12px", borderTop: `1px solid ${C.creamDark}` }}>
           {NAV.map(n => (
             <button key={n.key} onClick={() => n.key === "log" ? openNewBatch() : setTab(n.key)} style={{
               background: "transparent",
