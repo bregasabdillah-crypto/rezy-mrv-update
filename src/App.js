@@ -4375,7 +4375,11 @@ function useDeviceT() {
 // blocked. That is the one route out of a blocked tab that does not require the
 // operator to find browser settings.
 function useInstallPrompt() {
-  const [deferred, setDeferred] = useState(null);
+  // index.html captures beforeinstallprompt before the bundle loads, because
+  // Chrome usually fires it before React mounts. Seed from that stash, then
+  // keep listening in case it arrives later.
+  const [deferred, setDeferred] = useState(() =>
+    (typeof window !== "undefined" && window.__rezyInstallEvent) || null);
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
@@ -4384,12 +4388,18 @@ function useInstallPrompt() {
       || window.navigator.standalone === true;
     if (standalone) { setInstalled(true); return; }
     const onPrompt = (e) => { e.preventDefault(); setDeferred(e); };
+    const onReady = () => setDeferred(window.__rezyInstallEvent || null);
     const onInstalled = () => { setInstalled(true); setDeferred(null); };
+    if (window.__rezyInstallEvent) setDeferred(window.__rezyInstallEvent);
     window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("rezy-install-ready", onReady);
     window.addEventListener("appinstalled", onInstalled);
+    window.addEventListener("rezy-install-done", onInstalled);
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("rezy-install-ready", onReady);
       window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener("rezy-install-done", onInstalled);
     };
   }, []);
 
@@ -4398,6 +4408,7 @@ function useInstallPrompt() {
     deferred.prompt();
     const choice = await deferred.userChoice.catch(() => null);
     setDeferred(null);
+    if (typeof window !== "undefined") window.__rezyInstallEvent = null;
     return choice?.outcome === "accepted";
   };
   // iOS has no beforeinstallprompt, so Safari users get written steps instead.
@@ -4407,7 +4418,7 @@ function useInstallPrompt() {
   return { canInstall: Boolean(deferred), install, installed, isIos };
 }
 
-function InstallCard({ compact = false }) {
+function InstallCard({ compact = false, spaceBelow = false }) {
   const { canInstall, install, installed, isIos } = useInstallPrompt();
   const idS = DEVICE_STRINGS.id, enS = DEVICE_STRINGS.en;
   if (installed) return null;
@@ -4416,7 +4427,11 @@ function InstallCard({ compact = false }) {
     <div style={{
       background: C.cream, border: `1px solid ${C.creamDark}`, borderRadius: 12,
       padding: compact ? "12px 14px" : "14px 16px", textAlign: "left",
-      marginTop: compact ? 14 : 0, fontFamily: "'DM Sans', sans-serif",
+      marginTop: compact ? 14 : 0,
+      // carried by the card, not a wrapper, so nothing is left behind once it
+      // hides itself on an installed device
+      marginBottom: spaceBelow ? 20 : 0,
+      fontFamily: "'DM Sans', sans-serif",
     }}>
       <div style={{ fontSize: 13, fontWeight: 800, color: C.forest, lineHeight: 1.35 }}>{idS.installTitle}</div>
       <div style={{ fontSize: 12, color: C.mutedLight, marginBottom: 6 }}>{enS.installTitle}</div>
@@ -6575,6 +6590,11 @@ export default function RezyMRVLive() {
                 <h1 style={{ fontSize: 24, fontWeight: 800, color: C.forest, fontFamily: "'DM Sans', sans-serif", margin: 0 }}>Hub Depok-01</h1>
                 <p style={{ color: C.muted, fontSize: 13, marginTop: 3 }}>{t("livePilot")} <strong style={{ color: C.charcoal }}>{roleObj.name}</strong></p>
               </div>
+
+              {/* Offered here too, not only before sign-in: an operator who is
+                  already working is the one who needs the installed app, and
+                  the card removes itself once it is installed. */}
+              <InstallCard compact spaceBelow />
 
 	              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 20 }}>
 	                {[

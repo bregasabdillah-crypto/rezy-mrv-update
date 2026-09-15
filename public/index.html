@@ -29,6 +29,24 @@
   </div>
   <div id="root"></div>
   <script>
+    // Chrome fires beforeinstallprompt as soon as the page qualifies, which is
+    // usually before React has mounted and attached its own listener — so the
+    // event was missed and the Install button never appeared. Stash it here,
+    // before the bundle loads, and let the app pick it up on mount.
+    (function () {
+      window.__rezyInstallEvent = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__rezyInstallEvent = e;
+        window.dispatchEvent(new Event('rezy-install-ready'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__rezyInstallEvent = null;
+        window.dispatchEvent(new Event('rezy-install-done'));
+      });
+    })();
+  </script>
+  <script>
     (function () {
       var splash = document.getElementById('boot-splash');
       var root = document.getElementById('root');
