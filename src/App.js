@@ -74,7 +74,7 @@ const TRANSLATIONS = {
     chainOfCustody: "Chain of Custody",
     // Stage 1
     stage1Title: "Stage 1 — Collection Data",
-    stage1Note: "Record feedstock type, gross weight, weighing equipment ID, and collector identity for every batch.",
+    stage1Note: "Record feedstock type, gross weight, and collector identity for every batch.",
     feedstockType: "Feedstock Type", grossWeight: "Gross Weight (kg)",
     collector: "Lapak Name", weighingEquip: "Weighing Equipment",
     collectionDate: "Collection Date", notes: "Notes / Field Observations",
@@ -425,7 +425,7 @@ const TRANSLATIONS = {
     chainOfCustody: "Chain of Custody",
     // Stage 1
     stage1Title: "Tahap 1 — Data Pengumpulan",
-    stage1Note: "Catat jenis bahan baku, berat kotor, ID alat timbang, dan identitas pengumpul untuk setiap batch.",
+    stage1Note: "Catat jenis bahan baku, berat kotor, dan identitas pengumpul untuk setiap batch.",
     feedstockType: "Jenis Bahan Baku", grossWeight: "Berat Kotor (kg)",
     collector: "Nama Lapak", weighingEquip: "Alat Timbang",
     collectionDate: "Tanggal Pengumpulan", notes: "Catatan / Observasi Lapangan",
@@ -4777,7 +4777,7 @@ export default function RezyMRVLive() {
   const [colGeo, setColGeo] = useState({ lat: "", lng: "" });
   const [trn, setTrn] = useState({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: "" });
   const [trnGeo, setTrnGeo] = useState({ lat: "", lng: "" });
-  const [prc, setPrc] = useState({ processor: "", processorOther: "", eowProcess: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+  const [prc, setPrc] = useState({ processor: "", processorOther: "", eowProcess: "", weighingEquipId: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
   const [prcGeo, setPrcGeo] = useState({ lat: "", lng: "" });
   const [oft, setOft] = useState({ selectedLines: [], materials: [{ feedstockType: "", weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: "", photoDataUrl: null });
   const [oftGeo, setOftGeo] = useState({ lat: "", lng: "" });
@@ -5307,7 +5307,7 @@ export default function RezyMRVLive() {
     setColGeo({ lat: "", lng: "" });
     setTrn({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: "" });
     setTrnGeo({ lat: "", lng: "" });
-    setPrc({ processor: "", processorOther: "", eowProcess: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+    setPrc({ processor: "", processorOther: "", eowProcess: "", weighingEquipId: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setPrcGeo({ lat: "", lng: "" });
     setOft({ selectedLines: [], materials: [{ feedstockType: "", weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: "", photoDataUrl: null });
     setOftGeo({ lat: "", lng: "" });
@@ -5618,7 +5618,6 @@ export default function RezyMRVLive() {
       ...materialMissing,
       { ok: totalMaterialKg > 0, label: "total gross weight" },
 	      { ok: Boolean(col.collectorId), label: "Lapak Name" },
-	      { ok: Boolean(col.weighingEquipId), label: "Weighing Equipment" },
       { ok: Boolean((col.notes || "").trim()), label: "Notes / Field Observations" },
       { ok: Boolean(col.photoDataUrl), label: "Collection Photo (chain-of-custody evidence)" },
       { ok: Boolean(col.lapakBillPhotoDataUrl), label: "Lapak Bill Photo" },
@@ -5640,7 +5639,7 @@ export default function RezyMRVLive() {
       hub: "Hub Depok-01",
       materials,
       feedstockType: materialSummary(materials), weightKg: totalMaterialKg,
-	      collectorId: col.collectorId, weighingEquipId: col.weighingEquipId,
+	      collectorId: col.collectorId, weighingEquipId: null,
 	      pickupVehicle: null,
       collectionDate: capturedAt,
       notes: col.notes,
@@ -5768,6 +5767,7 @@ export default function RezyMRVLive() {
       { ok: Boolean(processorFinal), label: "Processing Facility" },
       { ok: materialsAvail.length <= 1 || Boolean(prc.processedMaterialIndex), label: "Material Processed" },
       { ok: Boolean(prc.eowProcess), label: "End-of-Waste Process" },
+      { ok: Boolean(prc.weighingEquipId), label: "Weighing Equipment" },
       { ok: Boolean(prc.photoDataUrl), label: "Processing Photo" },
       { ok: Boolean(sigPrc), label: "Processor Signature" },
     ])) return;
@@ -5790,6 +5790,7 @@ export default function RezyMRVLive() {
     const processingFields = {
       processor: processorFinal,
       eowProcess: prc.eowProcess,
+      weighingEquipId: prc.weighingEquipId,
       processingEndDate: capturedAt,
       processingPhotoDataUrl: prc.photoDataUrl,
       processedMaterialIndex: procMaterial?.index || 1,
@@ -5874,7 +5875,7 @@ export default function RezyMRVLive() {
       resetNewBatchForm();
       showToast("Processing recorded. Ready for next batch.");
     } else {
-      setPrc(p => ({ processor: p.processor, processorOther: p.processorOther, eowProcess: p.eowProcess, processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null }));
+      setPrc(p => ({ processor: p.processor, processorOther: p.processorOther, eowProcess: p.eowProcess, weighingEquipId: p.weighingEquipId, processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null }));
       setSigPrc(null);
       showToast(`Material M${procMaterial?.index || 1} processed. ${allMaterialIndexes.length - processedIndexes.length} material(s) remaining.`);
     }
@@ -6119,7 +6120,7 @@ export default function RezyMRVLive() {
     setColGeo({ lat: "", lng: "" });
     setTrn({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: "" });
     setTrnGeo({ lat: "", lng: "" });
-    setPrc({ processor: "", processorOther: "", eowProcess: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+    setPrc({ processor: "", processorOther: "", eowProcess: "", weighingEquipId: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setPrcGeo({ lat: "", lng: "" });
     setOft({ selectedLines: [], materials: [{ feedstockType: "", weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: "", photoDataUrl: null });
     setOftGeo({ lat: "", lng: "" });
@@ -6381,12 +6382,12 @@ export default function RezyMRVLive() {
               {[
                 [t("weight"), `${Number(detailView.weightKg).toLocaleString()} kg`],
 	                [t("collector"), detailView.collectorId],
-	                ["Weighing Equip.", detailView.weighingEquipId],
 	                [t("pickupVehicleLabel"), detailView.pickupVehicle],
 	                ["Collection Date", fmtDateTime(detailView.collectionDate)],
                 [t("transportRefShort"), detailView.transportRef],
                 [t("transportDate"), fmtDateTime(detailView.transportDate)],
                 ["Processor", detailView.processor],
+                ["Weighing Equip.", detailView.weighingEquipId],
                 [t("notesLabel"), detailView.notes],
                 ["EoW Process", eowLabel(detailView.eowProcess)],
                 [t("procEndDate"), fmtDateTime(detailView.processingEndDate)],
@@ -6857,7 +6858,6 @@ export default function RezyMRVLive() {
                         </div>
                       </div>
 	                      <SearchSel label={t("collector")} value={col.collectorId} onChange={v => setCol(p=>({...p,collectorId:v}))} options={COLLECTORS} required lang={lang} emptyLabel={t("enterLapakName")} placeholder={t("enterLapakName")} />
-	                      <Sel label={t("weighingEquip")} value={col.weighingEquipId} onChange={v => setCol(p=>({...p,weighingEquipId:v}))} options={[{ value: "", label: t("selectWeighingEquip") }, ...SCALES.map(o => ({ value: o, label: o }))]} required />
                       <Inp label={t("collectionTimestamp")} value={jakartaNowLabel(clockNow)} onChange={() => {}} disabled />
                       {SHOW_MAP_PICKER && <MapPicker value={colGeo} onChange={setColGeo} lang={lang} />}
                     </div>
@@ -6980,6 +6980,7 @@ export default function RezyMRVLive() {
                         <Inp label={t("processingFacilityOther")} value={prc.processorOther} onChange={v => setPrc(p=>({...p,processorOther:v}))} placeholder={t("processingFacilityOtherPlaceholder")} required />
                       )}
                       <Sel label={t("eowProcess")} value={prc.eowProcess} onChange={v => setPrc(p=>({...p,eowProcess:v}))} options={[{ value: "", label: t("selectEowProcess") }, ...EOW_PROCESS_OPTIONS]} required />
+                      <Sel label={t("weighingEquip")} value={prc.weighingEquipId} onChange={v => setPrc(p=>({...p,weighingEquipId:v}))} options={[{ value: "", label: t("selectWeighingEquip") }, ...SCALES.map(o => ({ value: o, label: o }))]} required />
                       {(() => {
                         const procMaterialsAll = (active?.materials?.length ? active.materials : [{ index: 1, feedstockType: directMeta.feedstockType, weightKg: directMeta.weightKg }]);
                         const procMaterialsAvail = procMaterialsAll.filter(m => !(active?.processedMaterials || []).some(pm => String(pm.processedMaterialIndex) === String(m.index || 1)));
