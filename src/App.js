@@ -3695,7 +3695,10 @@ function ChainOfCustodyPanel({ batches, lang }) {
     ? batch.materials
     : [{ index: 1, feedstockType: batch.feedstockType, weightKg: batch.weightKg }];
   const totalKg = mats.reduce((s, m) => s + (Number(m.weightKg) || 0), 0);
-  const devices = new Set(stages.filter(s => s.dev).map(s => s.dev));
+  // Distance from the collection point to the nearest coastline (coarse Java trace, estimate)
+  const coastGeo = getCollectionGeo(batch);
+  const coastKm = (coastGeo && Number.isFinite(Number(coastGeo.lat)) && Number.isFinite(Number(coastGeo.lng)) && coastGeo.lat !== "" && coastGeo.lng !== "")
+    ? distanceToCoastKm(Number(coastGeo.lat), Number(coastGeo.lng)) : null;
   const allDone = stages.every(s => s.done);
   const duration = custodyDuration(stages);
   const totalDistanceKm = stages.reduce((s, st) => s + (Number.isFinite(st.distanceFromPrevKm) ? st.distanceFromPrevKm : 0), 0);
@@ -3741,7 +3744,7 @@ function ChainOfCustodyPanel({ batches, lang }) {
             ["Total weight", `${totalKg.toLocaleString()} kg`],
             ["Materials", `${mats.length} line${mats.length > 1 ? "s" : ""}`],
             ["Collection → EoW", duration || "—"],
-            ["Custody devices", `${devices.size} distinct`],
+            ["Distance to ocean (est.)", coastKm != null && Number.isFinite(coastKm) ? `${coastKm.toFixed(1)} km` : "—"],
             ["Est. transport distance", fmtDistanceRange(totalDistanceKm)],
             [t("endToEndYield"), e2e.hasDownstream ? `${e2e.retainedPct.toFixed(1)}%` : "—"],
           ].map(([label, value]) => (
