@@ -4960,12 +4960,13 @@ export default function RezyMRVLive() {
     return isNaN(d.getTime()) ? "" : d.toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" });
   };
   const lineAvailableDate = (b, l) => {
+    if (l.collection) return jakartaDateOf(b.collectionDate);
     const pm = (b.processedMaterials || []).find(m => String(m.processedMaterialIndex || 1) === String(l.index));
     return jakartaDateOf(pm?.processingEndDate || b.processingEndDate);
   };
   const offtakerLineMatchesFilter = (l, b) => {
     const kwOk = !offtakerSelectedKeywords.length || offtakerSelectedKeywords.some(k => (l.feedstockType || "").includes(k));
-    const facOk = !offtakerSelectedFacilities.length || offtakerSelectedFacilities.some(f => facilityKey(f) === facilityKey(l.processor));
+    const facOk = l.collection || !offtakerSelectedFacilities.length || offtakerSelectedFacilities.some(f => facilityKey(f) === facilityKey(l.processor));
     const avail = b ? lineAvailableDate(b, l) : "";
     const dateOk = !offtakerDeliveryDate || !avail || avail <= offtakerDeliveryDate;
     return kwOk && facOk && dateOk;
@@ -4973,8 +4974,24 @@ export default function RezyMRVLive() {
   // One selectable option per unshipped processed line, not per batch. A batch that
   // processed PET and LVP separately now offers two options, and shipping one leaves
   // the other on the list.
-  const offtakerLinesAll = offtakerBatches.flatMap(b =>
-    unshippedLinesOf(b).map(line => ({ b, line, key: `${b.id}::${line.index}` })));
+  // Approved non-PET collection lines (PP, HD) that were never processed as their own line
+  // at the hub. PET is deliberately left out: it only becomes stock after bale-press
+  // processing. Index is prefixed "c" so it can never collide with a processed-line index.
+  const collectionLinesOf = (b) => {
+    if (!["transport", "processing", "offtaker_transport", "downstream_processing"].includes(b.status)) return [];
+    const shippedIdx = new Set((b.offtakerMaterials || []).map(m => String(m.processedMaterialIndex ?? "")));
+    const processedTypes = new Set((b.processedMaterials || []).map(m => m.processedFeedstockType));
+    return (b.materials || [])
+      .map((m, i) => ({ m, idx: "c" + String(m.index || i + 1) }))
+      .filter(({ m, idx }) => m.feedstockType && !/^PET/i.test(m.feedstockType)
+        && /^(PP|HD)/i.test(m.feedstockType) && (Number(m.weightKg) || 0) > 0
+        && !shippedIdx.has(idx) && !processedTypes.has(m.feedstockType))
+      .map(({ m, idx }) => ({ index: idx, feedstockType: m.feedstockType, weightKg: Number(m.weightKg), processor: "", collection: true }));
+  };
+  const offtakerLinesAll = [
+    ...offtakerBatches.flatMap(b => unshippedLinesOf(b).map(line => ({ b, line, key: `${b.id}::${line.index}` }))),
+    ...visibleBatches.flatMap(b => collectionLinesOf(b).map(line => ({ b, line, key: `${b.id}::${line.index}` }))),
+  ];
   const offtakerLinesFiltered = (offtakerSelectedKeywords.length || offtakerSelectedFacilities.length || offtakerDeliveryDate)
     ? offtakerLinesAll.filter(({ b, line }) => offtakerLineMatchesFilter(line, b))
     : offtakerLinesAll;
