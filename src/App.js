@@ -868,6 +868,21 @@ const PICKUP_VEHICLES = [
   "Isuzu Traga B 9038 KCN",
   "Grand Max B 9482 WAF",
 ];
+const OFFTAKER_NAMES = [
+  "PT. Polindo Utama",
+  "PT. Harvestindo International",
+  "PT. Grand Everest",
+  "PT. CUMP",
+  "PT. Gaia",
+  "PT. Haka Sentral Plastik",
+  "PT. Indorama",
+  "PT. Amandina",
+  "PT. Sejahtera (Cibinong)",
+  "PT. ABC",
+  "PT. Hengsheng",
+  "PT. Pan Era",
+  "PT. Alba Tridi Recyle",
+];
 const PROCESSING_FACILITIES = [
   "Hub Depok Cinangka",
   "Hub Cikarang",
@@ -4893,7 +4908,9 @@ export default function RezyMRVLive() {
   const active = batches.find(b => b.id === activeId);
   // Batches that have cleared admin review (accepted) — pending-review batches are hidden
   // from recent batches, records, dropdowns, and stats until an admin decides.
-  const visibleBatches = batches.filter(b => (b.reviewStatus || "pending") !== "pending");
+  // June and September 2026 test data (DPK- batches collected before 1 Oct 2026) is retired: never shown, even from a local cache.
+  const isRetiredBatch = (b) => /^DPK-/.test(b.batchId || "") && b.collectionDate && new Date(b.collectionDate) < new Date("2026-09-30T17:00:00Z");
+  const visibleBatches = batches.filter(b => (b.reviewStatus || "pending") !== "pending" && !isRetiredBatch(b));
   // Batches collected (D-day or D-1) and not yet picked up by a transport manifest
   // Internal Depok = internal reclassification of sorting rejects; it never leaves the hub, so it is outside the transport / chain of custody.
   const isInternalBatch = (b) => b.collectorId === "Internal Depok";
@@ -4922,19 +4939,33 @@ export default function RezyMRVLive() {
   // Filter eligible batches to those with a material line matching the selected off-taker feedstock type's keyword
   // and/or the selected processing facility
   const offtakerSelectedKeywords = [...new Set((oft.materials || []).map(m => feedstockKeywordFor(m.feedstockType)).filter(Boolean))];
-  const offtakerSelectedFacilities = [...new Set((oft.materials || []).map(m => m.processor).filter(Boolean))];
-  const offtakerLineMatchesFilter = (l) => {
+  // One processing facility per transaction (not per feedstock)
+  const offtakerSelectedFacilities = oft.processor ? [oft.processor] : [];
+  // Delivery date: only lines processed on or before this date are offered (Jakarta calendar date)
+  const offtakerDeliveryDate = oft.deliveryDate || "";
+  const jakartaDateOf = (v) => {
+    if (!v) return "";
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? "" : d.toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" });
+  };
+  const lineAvailableDate = (b, l) => {
+    const pm = (b.processedMaterials || []).find(m => String(m.processedMaterialIndex || 1) === String(l.index));
+    return jakartaDateOf(pm?.processingEndDate || b.processingEndDate);
+  };
+  const offtakerLineMatchesFilter = (l, b) => {
     const kwOk = !offtakerSelectedKeywords.length || offtakerSelectedKeywords.some(k => (l.feedstockType || "").includes(k));
     const facOk = !offtakerSelectedFacilities.length || offtakerSelectedFacilities.some(f => facilityKey(f) === facilityKey(l.processor));
-    return kwOk && facOk;
+    const avail = b ? lineAvailableDate(b, l) : "";
+    const dateOk = !offtakerDeliveryDate || !avail || avail <= offtakerDeliveryDate;
+    return kwOk && facOk && dateOk;
   };
   // One selectable option per unshipped processed line, not per batch. A batch that
   // processed PET and LVP separately now offers two options, and shipping one leaves
   // the other on the list.
   const offtakerLinesAll = offtakerBatches.flatMap(b =>
     unshippedLinesOf(b).map(line => ({ b, line, key: `${b.id}::${line.index}` })));
-  const offtakerLinesFiltered = (offtakerSelectedKeywords.length || offtakerSelectedFacilities.length)
-    ? offtakerLinesAll.filter(({ line }) => offtakerLineMatchesFilter(line))
+  const offtakerLinesFiltered = (offtakerSelectedKeywords.length || offtakerSelectedFacilities.length || offtakerDeliveryDate)
+    ? offtakerLinesAll.filter(({ b, line }) => offtakerLineMatchesFilter(line, b))
     : offtakerLinesAll;
   const OFFTAKER_BATCHES_PER_PAGE = 10;
   const offtakerPageCount = Math.max(1, Math.ceil(offtakerLinesFiltered.length / OFFTAKER_BATCHES_PER_PAGE));
@@ -5945,6 +5976,7 @@ export default function RezyMRVLive() {
       { ok: selectedLines.length > 0 ? true : Boolean(directBatchId()), label: "Batch ID" },
       { ok: (oft.materials || []).every(m => m.feedstockType && Number(m.weightKg) > 0), label: "Materials" },
       { ok: Boolean((oft.offtakerName || "").trim()), label: "Off-taker Name" },
+      { ok: Boolean(oft.deliveryDate), label: "Delivery date" },
       { ok: Boolean(transportRef), label: "Transport Manifest Ref." },
       { ok: Boolean(oft.plateNo), label: "Material Plate No." },
       { ok: Boolean(oft.photoDataUrl), label: "Delivery Order Photo" },
@@ -5959,9 +5991,9 @@ export default function RezyMRVLive() {
       return;
     }
     const clientMeta = await captureClientMeta();
-    const activity = makeActivityAt("Offtaker Transport", roleObj.name, capturedAt, geo, `Manifest: ${transportRef}`);
+    const activity = makeActivityAt("Offtaker Transport", roleObj.name, capturedAt, geo, `Manifest: ${transportRef} · Delivery date: ${oft.deliveryDate}${oft.processor ? ` · Facility: ${oft.processor}` : ""}`);
     const offtakerFields = {
-      offtakerMaterials: (oft.materials || []).map(m => ({ ...m, offtakerName: (oft.offtakerName || "").trim() })),
+      offtakerMaterials: (oft.materials || []).map(m => ({ ...m, processor: oft.processor || m.processor || "", offtakerName: (oft.offtakerName || "").trim() })),
       offtakerTransportRef: transportRef,
       offtakerTransportDate: capturedAt,
       offtakerPlateNo: oft.plateNo,
@@ -7123,13 +7155,18 @@ export default function RezyMRVLive() {
                             </div>
                           );
                         })}
-                        <Inp label={t("offtakerName")} value={rej.offtaker} onChange={v => setRej(p => ({ ...p, offtaker: v }))} placeholder={t("offtakerNamePh")} />
+                        <SearchSel label={t("offtakerName")} value={rej.offtaker} onChange={v => setRej(p => ({ ...p, offtaker: v }))} options={OFFTAKER_NAMES.map(n => ({ value: n, label: n }))} placeholder={t("offtakerNamePh")} lang={lang} />
                         <div style={{ marginTop: 8 }}>
                           <Sel label={t("materialPlateNo")} value={rej.plate} onChange={v => setRej(p => ({ ...p, plate: v }))} options={[{ value: "", label: t("selectPlateNo") }, ...OFFTAKER_PLATE_NUMBERS.map(o => ({ value: o, label: o }))]} />
                         </div>
                         <div style={{ marginTop: 10 }}><Btn small onClick={submitRejectedShipment} variant="secondary" disabled={rej.busy}>Record rejected-material shipment</Btn></div>
                       </div>
                     )}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
+                      <SearchSel label={t("offtakerName")} value={oft.offtakerName || ""} onChange={v => setOft(p => ({ ...p, offtakerName: v }))} options={OFFTAKER_NAMES.map(n => ({ value: n, label: n }))} placeholder={t("offtakerNamePh")} required lang={lang} />
+                      <Sel label={t("processingFacility")} value={oft.processor || ""} onChange={v => setOft(p => ({ ...p, processor: v }))} options={[{ value: "", label: t("allFacilities") }, ...PROCESSING_FACILITIES.map(f => ({ value: f, label: f }))]} />
+                      <Inp label="Delivery date" type="date" value={oft.deliveryDate || ""} onChange={v => setOft(p => ({ ...p, deliveryDate: v }))} required />
+                    </div>
                     <div style={{ marginBottom: 13 }}>
                       <Lbl>{t("materialsLabel")}</Lbl>
                       <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t("feedstockPick")}</div>
@@ -7159,11 +7196,6 @@ export default function RezyMRVLive() {
                                 next[idx] = { ...next[idx], feedstockType: v };
                                 return { ...p, materials: next };
                               })} options={[{ value: "", label: t("selectFeedstockType") }, ...OFFTAKER_FEEDSTOCK_TYPES.map(o => ({ value: o, label: o }))]} required />
-                              <Sel label={idx === 0 ? t("processingFacility") : ""} value={m.processor || ""} onChange={v => setOft(p => {
-                                const next = [...(p.materials || [])];
-                                next[idx] = { ...next[idx], processor: v };
-                                return { ...p, materials: next };
-                              })} options={[{ value: "", label: t("allFacilities") }, ...PROCESSING_FACILITIES.map(f => ({ value: f, label: f }))]} />
                             </div>
                             <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
                               <div style={{ flex: isMobile ? "1 1 auto" : "0 0 120px", minWidth: 0 }}>
@@ -7249,7 +7281,6 @@ export default function RezyMRVLive() {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
                       <Inp label={t("transportRef")} value={offtakerSelectedLines.length > 0 ? (oft.transportRef || generatedManifestRef(offtakerSelectedLines[0].b.batchId, clockNow)) : ""} onChange={() => {}} disabled />
                       <Inp label={t("transportTimestamp")} value={jakartaNowLabel(clockNow)} onChange={() => {}} disabled />
-                      <Inp label={t("offtakerName")} value={oft.offtakerName || ""} onChange={v => setOft(p => ({ ...p, offtakerName: v }))} placeholder={t("offtakerNamePh")} required />
                       <Sel label={t("materialPlateNo")} value={oft.plateNo} onChange={v => setOft(p=>({...p,plateNo:v}))} options={[{ value: "", label: t("selectPlateNo") }, ...OFFTAKER_PLATE_NUMBERS.map(o => ({ value: o, label: o }))]} required />
                       {SHOW_MAP_PICKER && <MapPicker value={oftGeo} onChange={setOftGeo} lang={lang} />}
                     </div>
