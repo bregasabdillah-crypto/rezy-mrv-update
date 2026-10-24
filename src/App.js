@@ -899,20 +899,22 @@ function facilityKey(name) {
 }
 const DEFAULT_PROCESSING_FACILITY = "Hub Depok Cinangka";
 const OFFTAKER_FEEDSTOCK_TYPES = [
-  "PET Clear (Baled-press)",
-  "PET Blue light (Baled-press)",
-  "PET Mix (Baled-press)",
-  "PET Green (Baled-press)",
-  "PET Dark Blue (Baled-press)",
-  "PET Dove (Baled-press)",
-  "PET Grade B (Baled-press)",
-  "PET Grade C (Baled-press)",
-  "PP LVP (Pellet)",
-  "PP Karung (Pellet)",
-  "PS (Pellet)",
-  "PP Mixed gabrug (Baled-press)",
-  "HDPE (Flakes)",
-  "LDPE (Flakes)",
+  "PET Clear (bale-press)",
+  "PET BM (bale-press)",
+  "PET Hijau (bale-press)",
+  "PET Biru tua (bale-press)",
+  "PET B (bale-press)",
+  "PET C (bale-press)",
+  "PET Gallon LM (bale-press)",
+  "PET PK dove (bale-press)",
+  "PET Colmix (bale-press)",
+  "PP Gelas A (raw)",
+  "PP Gelas B (raw)",
+  "PP Gelas kotor (raw)",
+  "PP Gelas montea (raw)",
+  "HD tutup (raw)",
+  "PP Karung (bale-press)",
+  "PP Polybag (bale-press)",
 ];
 // Maps each off-taker product grade to the collected/processed feedstock keyword
 // (from FEEDSTOCK_TYPES) it should be sourced from, used to filter eligible batches.
@@ -922,17 +924,17 @@ const OFFTAKER_FEEDSTOCK_TYPES = [
 // that matches nothing would leave the operator staring at an empty list with no
 // explanation. Showing everything is the safer failure.
 const OFFTAKER_TO_FEEDSTOCK_KEYWORD = {
-  "PET Clear (Baled-press)": "PET",
-  "PET Blue light (Baled-press)": "PET",
-  "PET Mix (Baled-press)": "PET",
-  "PET Green (Baled-press)": "PET",
-  "PET Dark Blue (Baled-press)": "PET",
-  "PET Dove (Baled-press)": "PET",
-  "PET Grade B (Baled-press)": "PET",
-  "PET Grade C (Baled-press)": "PET",
-  "PP Karung (Pellet)": "PP Karung",
-  "PP Mixed gabrug (Baled-press)": "Gabrug",
-  "HDPE (Flakes)": "HDPE",
+  "PET Clear (bale-press)": "PET",
+  "PET BM (bale-press)": "PET",
+  "PET Hijau (bale-press)": "PET",
+  "PET Biru tua (bale-press)": "PET",
+  "PET B (bale-press)": "PET",
+  "PET C (bale-press)": "PET",
+  "PET Gallon LM (bale-press)": "PET",
+  "PET PK dove (bale-press)": "PET",
+  "PET Colmix (bale-press)": "PET",
+  "HD tutup (raw)": "HD",
+  "PP Karung (bale-press)": "PP Karung",
 };
 // Resolved by rule first, then the table. Any off-taker product whose name
 // carries "PP Gelas" should draw on every PP Gelas grade — A, B and Montea —
@@ -5176,6 +5178,7 @@ export default function RezyMRVLive() {
 
   // ── Rejected material (gelas / karung from sorting): separate stream, outside chain of custody ──
   const REJECTED_MATERIALS = ["PP Cup Grade A", "PP Karung"];
+  const [oftProductQuery, setOftProductQuery] = useState("");
   const [rej, setRej] = useState({ stock: null, offtaker: "", plate: "", kg: { "PP Cup Grade A": "", "PP Karung": "" }, busy: false });
   const rejUrl = /rezy-mrv-api/.test(sheetsUrl || "") ? sheetsUrl.replace("rezy-mrv-api", "rezy-rejected-api") : null;
   async function loadRejStock() {
@@ -7170,11 +7173,13 @@ export default function RezyMRVLive() {
                     <div style={{ marginBottom: 13 }}>
                       <Lbl>{t("materialsLabel")}</Lbl>
                       <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t("feedstockPick")}</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-                        {OFFTAKER_FEEDSTOCK_TYPES.map(ft => {
+                      <input type="text" value={oftProductQuery} onChange={e => setOftProductQuery(e.target.value)} placeholder="Search product…" style={{ width: "100%", padding: "9px 12px", borderRadius: 8, boxSizing: "border-box", border: `1.5px solid ${C.creamDark}`, background: C.white, fontSize: 13, fontFamily: "inherit", marginBottom: 8 }} />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10, maxHeight: 220, overflowY: "auto", border: `1px solid ${C.creamDark}`, borderRadius: 8, padding: 6, background: C.cardBg }}>
+                        {OFFTAKER_FEEDSTOCK_TYPES.filter(ft => !oftProductQuery.trim() || ft.toLowerCase().includes(oftProductQuery.trim().toLowerCase())).map(ft => {
                           const on = (oft.materials || []).some(m => m.feedstockType === ft);
                           return (
-                            <button key={ft} type="button" onClick={() => setOft(p => {
+                            <label key={ft} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: on ? C.creamMid : "transparent", border: `1px solid ${on ? C.forest : "transparent"}` }}>
+                              <input type="checkbox" checked={on} style={{ width: 18, height: 18, accentColor: C.forest, flexShrink: 0 }} onChange={() => setOft(p => {
                               const cur = p.materials || [];
                               if (cur.some(m => m.feedstockType === ft)) {
                                 const left = cur.filter(m => m.feedstockType !== ft);
@@ -7183,7 +7188,9 @@ export default function RezyMRVLive() {
                               const emptyIdx = cur.findIndex(m => !m.feedstockType);
                               if (emptyIdx >= 0) { const next = [...cur]; next[emptyIdx] = { ...next[emptyIdx], feedstockType: ft }; return { ...p, materials: next }; }
                               return { ...p, materials: [...cur, { feedstockType: ft, weightKg: "", processor: "" }] };
-                            })} style={{ padding: "6px 10px", borderRadius: 16, fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1px solid ${on ? C.forest : C.creamDark}`, background: on ? C.forest : C.cardBg, color: on ? "#fff" : C.charcoal }}>{ft}</button>
+                              })} />
+                              <span style={{ fontSize: 13, fontWeight: on ? 700 : 500, color: C.charcoal }}>{ft}</span>
+                            </label>
                           );
                         })}
                       </div>
