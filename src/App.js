@@ -5143,6 +5143,38 @@ export default function RezyMRVLive() {
     setTimeout(() => setToast(null), type === "err" ? 6000 : 3400);
   }
 
+  // ── Rejected material (gelas / karung from sorting): separate stream, outside chain of custody ──
+  const REJECTED_MATERIALS = ["PP Cup Grade A", "PP Karung"];
+  const [rej, setRej] = useState({ stock: null, offtaker: "", plate: "", kg: { "PP Cup Grade A": "", "PP Karung": "" }, busy: false });
+  const rejUrl = /rezy-mrv-api/.test(sheetsUrl || "") ? sheetsUrl.replace("rezy-mrv-api", "rezy-rejected-api") : null;
+  async function loadRejStock() {
+    if (!rejUrl) return;
+    try {
+      const j = await (await fetch(rejUrl, { cache: "no-store" })).json();
+      if (j && j.ok) setRej(p => ({ ...p, stock: j.stock }));
+    } catch { /* ignore */ }
+  }
+  useEffect(() => { if (entryMode === "offtaker_transport") loadRejStock(); }, [entryMode, rejUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function submitRejectedShipment() {
+    const items = REJECTED_MATERIALS.map(m => ({ material: m, qty_kg: Number(rej.kg[m]) || 0 })).filter(i => i.qty_kg > 0);
+    if (!rej.offtaker.trim()) return showToast("Off-taker name is required.", "err");
+    if (!items.length) return showToast("Enter a weight for at least one material.", "err");
+    setRej(p => ({ ...p, busy: true }));
+    try {
+      const res = await fetch(rejUrl, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ship", offtakerName: rej.offtaker.trim(), plateNo: rej.plate, items, inputter: "App" }),
+      });
+      const j = await res.json();
+      if (!j.ok) { showToast(j.error || "Failed to record shipment.", "err"); setRej(p => ({ ...p, busy: false })); return; }
+      showToast(`Rejected-material shipment recorded (${items.length} material).`);
+      setRej(p => ({ ...p, stock: j.stock, offtaker: "", plate: "", kg: { "PP Cup Grade A": "", "PP Karung": "" }, busy: false }));
+    } catch (e) {
+      showToast("Could not reach the backend.", "err");
+      setRej(p => ({ ...p, busy: false }));
+    }
+  }
+
   function requireFields(fields) {
     const missing = fields.filter(f => !f.ok).map(f => f.label);
     if (missing.length) {
@@ -7073,6 +7105,31 @@ export default function RezyMRVLive() {
                 {entryMode === "offtaker_transport" && stage === 4 && (
                   <div>
                     <SectionTitle>{t("stageOfftakerTransport")}</SectionTitle>
+                    {rejUrl && rej.stock && (
+                      <div style={{ background: C.creamMid, borderRadius: 10, padding: "12px 14px", marginBottom: 16, border: `1px solid ${C.creamDark}` }}>
+                        <div style={{ fontWeight: 800, color: C.forest, marginBottom: 2 }}>Rejected material (gelas / karung)</div>
+                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>Separate stream from sorting, outside chain of custody. Only approved stock can be shipped.</div>
+                        {REJECTED_MATERIALS.map(m => {
+                          const s = rej.stock[m] || { available_kg: 0, pending_kg: 0 };
+                          return (
+                            <div key={m} style={{ display: "flex", gap: 8, alignItems: "end", marginBottom: 8 }}>
+                              <div style={{ flex: 1, fontSize: 12, color: C.charcoal }}>
+                                <div style={{ fontWeight: 700 }}>{m}</div>
+                                <div style={{ color: C.muted }}>Available {Number(s.available_kg).toLocaleString()} kg{s.pending_kg > 0 ? ` · pending approval ${Number(s.pending_kg).toLocaleString()} kg` : ""}</div>
+                              </div>
+                              <div style={{ flex: "0 0 110px" }}>
+                                <Inp label="" type="number" value={rej.kg[m]} onChange={v => setRej(p => ({ ...p, kg: { ...p.kg, [m]: v } }))} placeholder="kg" />
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <Inp label={t("offtakerName")} value={rej.offtaker} onChange={v => setRej(p => ({ ...p, offtaker: v }))} placeholder={t("offtakerNamePh")} />
+                        <div style={{ marginTop: 8 }}>
+                          <Sel label={t("materialPlateNo")} value={rej.plate} onChange={v => setRej(p => ({ ...p, plate: v }))} options={[{ value: "", label: t("selectPlateNo") }, ...OFFTAKER_PLATE_NUMBERS.map(o => ({ value: o, label: o }))]} />
+                        </div>
+                        <div style={{ marginTop: 10 }}><Btn small onClick={submitRejectedShipment} variant="secondary" disabled={rej.busy}>Record rejected-material shipment</Btn></div>
+                      </div>
+                    )}
                     <div style={{ marginBottom: 13 }}>
                       <Lbl>{t("materialsLabel")}</Lbl>
                       <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t("feedstockPick")}</div>
