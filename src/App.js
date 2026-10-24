@@ -6589,24 +6589,19 @@ export default function RezyMRVLive() {
                   const ipMap = parseInputterMap(detailView.inputterIp);
                   const devMap = parseInputterMap(detailView.inputterDevice);
                   const rows = [];
-                  if (ipMap.collection || devMap.collection) rows.push(
-                    [t("collectionInputterIp"), ipMap.collection || "—"],
+                  if (devMap.collection) rows.push(
                     [t("collectionInputterId"), devMap.collection ? extractInputterId(devMap.collection) : "—"],
                   );
-                  if (ipMap.transport || devMap.transport) rows.push(
-                    [t("transportInputterIp"), ipMap.transport || "—"],
+                  if (devMap.transport) rows.push(
                     [t("transportInputterId"), devMap.transport ? extractInputterId(devMap.transport) : "—"],
                   );
-                  if (ipMap.processing || devMap.processing) rows.push(
-                    [t("processingInputterIp"), ipMap.processing || "—"],
+                  if (devMap.processing) rows.push(
                     [t("processingInputterId"), devMap.processing ? extractInputterId(devMap.processing) : "—"],
                   );
-                  if (ipMap.offtaker_transport || devMap.offtaker_transport) rows.push(
-                    [t("offtakerInputterIp"), ipMap.offtaker_transport || "—"],
+                  if (devMap.offtaker_transport) rows.push(
                     [t("offtakerInputterId"), devMap.offtaker_transport ? extractInputterId(devMap.offtaker_transport) : "—"],
                   );
-                  if (ipMap.downstream_processing || devMap.downstream_processing) rows.push(
-                    [t("downstreamInputterIp"), ipMap.downstream_processing || "—"],
+                  if (devMap.downstream_processing) rows.push(
                     [t("downstreamInputterId"), devMap.downstream_processing ? extractInputterId(devMap.downstream_processing) : "—"],
                   );
                   return rows;
