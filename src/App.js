@@ -1044,10 +1044,12 @@ function fmtDate(val) {
   if (!val) return "—";
   // Extract YYYY-MM-DD parts directly to avoid UTC→local timezone shift on date-only fields
   if (typeof val === "string") {
-    const m = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    // Date-only strings are calendar dates: format them as-is (UTC) so the viewer's timezone cannot shift them.
+    // Strings with a time part are instants and fall through to the Jakarta conversion below.
+    const m = val.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (m) {
-      const d = new Date(+m[1], +m[2] - 1, +m[3]);
-	      return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: JAKARTA_TIME_ZONE });
+      const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+      return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
     }
   }
   const d = parseDate(val);
