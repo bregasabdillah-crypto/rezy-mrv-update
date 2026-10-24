@@ -76,7 +76,7 @@ const TRANSLATIONS = {
     stage1Title: "Stage 1 — Collection Data",
     stage1Note: "Record feedstock type, gross weight, and collector identity for every batch.",
     feedstockType: "Feedstock Type", grossWeight: "Gross Weight (kg)",
-    collector: "Lapak Name", weighingEquip: "Weighing Equipment",
+    collector: "Lapak Name", weighingEquip: "Weighing Equipment", hubWeightLabel: "Hub Weight (Timbangan Gudang, kg)", hubWeightNone: "not recorded yet", offtakerName: "Off-taker Name (destination)", offtakerNamePh: "e.g. company / plant name", feedstockPick: "Select material(s) — you can choose several",
     collectionDate: "Collection Date", notes: "Notes / Field Observations",
     notesPlaceholder: "Condition of batch, contamination notes, etc.",
     collectionPhoto: "Collection Photo (chain-of-custody evidence)",
@@ -427,7 +427,7 @@ const TRANSLATIONS = {
     stage1Title: "Tahap 1 — Data Pengumpulan",
     stage1Note: "Catat jenis bahan baku, berat kotor, dan identitas pengumpul untuk setiap batch.",
     feedstockType: "Jenis Bahan Baku", grossWeight: "Berat Kotor (kg)",
-    collector: "Nama Lapak", weighingEquip: "Alat Timbang",
+    collector: "Nama Lapak", weighingEquip: "Alat Timbang", hubWeightLabel: "Timbangan Gudang (kg)", hubWeightNone: "belum tercatat", offtakerName: "Nama Off-taker (tujuan)", offtakerNamePh: "mis. nama perusahaan / pabrik", feedstockPick: "Pilih material (bisa lebih dari satu)",
     collectionDate: "Tanggal Pengumpulan", notes: "Catatan / Observasi Lapangan",
     notesPlaceholder: "Kondisi batch, catatan kontaminasi, dll.",
     collectionPhoto: "Foto Pengumpulan (bukti chain-of-custody)",
@@ -877,6 +877,12 @@ const PROCESSING_FACILITIES = [
   "Hub Lampung",
   "Other",
 ];
+// Facility names were recorded both as "Hub Depok Cinangka" (picker) and
+// "Depok Cinangka" (imported processing rows). Compare them without the "Hub " prefix.
+function facilityKey(name) {
+  return String(name || "").trim().toLowerCase().replace(/^hub\s+/, "");
+}
+const DEFAULT_PROCESSING_FACILITY = "Hub Depok Cinangka";
 const OFFTAKER_FEEDSTOCK_TYPES = [
   "PET Clear (Baled-press)",
   "PET Blue light (Baled-press)",
@@ -2126,6 +2132,7 @@ function normalizeSheetBatch(row) {
     contaminationPhotoDataUrl: pickField(row, ["contaminationPhotoUrl", "contaminationPhotoDataUrl", "Contamination Photo URL", "Contamination Photo"]),
     yieldVarianceKg: pickField(row, ["yieldVarianceKg", "Yield Variance (kg)"]),
     yieldVariancePct: pickField(row, ["yieldVariancePct", "Yield Variance (%)"]),
+    gudangKg: pickField(row, ["gudangKg", "Hub Weight"]),
     offtakerMaterials: pickField(row, ["offtakerMaterials", "Offtaker Materials"]) || [],
     processedMaterials: pickField(row, ["processedMaterials", "Processed Materials"]) || [],
     offtakerTransportRef: pickField(row, ["offtakerTransportRef", "Offtaker Transport Ref."]),
@@ -2489,6 +2496,7 @@ function stripForSheets(batch) {
       index: idx + 1,
       feedstockType: m.feedstockType,
       weightKg: Number(m.weightKg) || 0,
+      ...(m.offtakerName ? { offtakerName: m.offtakerName } : {}),
     })),
     processedMaterials: batch.processedMaterials || [],
     offtakerTransportRef:  batch.offtakerTransportRef || "",
@@ -4777,9 +4785,9 @@ export default function RezyMRVLive() {
   const [colGeo, setColGeo] = useState({ lat: "", lng: "" });
   const [trn, setTrn] = useState({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: "" });
   const [trnGeo, setTrnGeo] = useState({ lat: "", lng: "" });
-  const [prc, setPrc] = useState({ processor: "", processorOther: "", eowProcess: "", weighingEquipId: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+  const [prc, setPrc] = useState({ processor: DEFAULT_PROCESSING_FACILITY, processorOther: "", eowProcess: "", weighingEquipId: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
   const [prcGeo, setPrcGeo] = useState({ lat: "", lng: "" });
-  const [oft, setOft] = useState({ selectedLines: [], materials: [{ feedstockType: "", weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: "", photoDataUrl: null });
+  const [oft, setOft] = useState({ offtakerName: "", selectedLines: [], materials: [{ feedstockType: "", weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: "", photoDataUrl: null });
   const [oftGeo, setOftGeo] = useState({ lat: "", lng: "" });
   const [offtakerPage, setOfftakerPage] = useState(0);
   const [dsp, setDsp] = useState({ facility: "", facilityOther: "", eowProcess: "", processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
@@ -4908,7 +4916,7 @@ export default function RezyMRVLive() {
   const offtakerSelectedFacilities = [...new Set((oft.materials || []).map(m => m.processor).filter(Boolean))];
   const offtakerLineMatchesFilter = (l) => {
     const kwOk = !offtakerSelectedKeywords.length || offtakerSelectedKeywords.some(k => (l.feedstockType || "").includes(k));
-    const facOk = !offtakerSelectedFacilities.length || offtakerSelectedFacilities.includes(l.processor);
+    const facOk = !offtakerSelectedFacilities.length || offtakerSelectedFacilities.some(f => facilityKey(f) === facilityKey(l.processor));
     return kwOk && facOk;
   };
   // One selectable option per unshipped processed line, not per batch. A batch that
@@ -5307,9 +5315,9 @@ export default function RezyMRVLive() {
     setColGeo({ lat: "", lng: "" });
     setTrn({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: "" });
     setTrnGeo({ lat: "", lng: "" });
-    setPrc({ processor: "", processorOther: "", eowProcess: "", weighingEquipId: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+    setPrc({ processor: DEFAULT_PROCESSING_FACILITY, processorOther: "", eowProcess: "", weighingEquipId: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setPrcGeo({ lat: "", lng: "" });
-    setOft({ selectedLines: [], materials: [{ feedstockType: "", weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: "", photoDataUrl: null });
+    setOft({ offtakerName: "", selectedLines: [], materials: [{ feedstockType: "", weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: "", photoDataUrl: null });
     setOftGeo({ lat: "", lng: "" });
     setDsp({ facility: "", facilityOther: "", eowProcess: "", processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setDspGeo({ lat: "", lng: "" });
@@ -5895,6 +5903,7 @@ export default function RezyMRVLive() {
     if (!requireFields([
       { ok: selectedLines.length > 0 ? true : Boolean(directBatchId()), label: "Batch ID" },
       { ok: (oft.materials || []).every(m => m.feedstockType && Number(m.weightKg) > 0), label: "Materials" },
+      { ok: Boolean((oft.offtakerName || "").trim()), label: "Off-taker Name" },
       { ok: Boolean(transportRef), label: "Transport Manifest Ref." },
       { ok: Boolean(oft.plateNo), label: "Material Plate No." },
       { ok: Boolean(oft.photoDataUrl), label: "Delivery Order Photo" },
@@ -5911,7 +5920,7 @@ export default function RezyMRVLive() {
     const clientMeta = await captureClientMeta();
     const activity = makeActivityAt("Offtaker Transport", roleObj.name, capturedAt, geo, `Manifest: ${transportRef}`);
     const offtakerFields = {
-      offtakerMaterials: oft.materials,
+      offtakerMaterials: (oft.materials || []).map(m => ({ ...m, offtakerName: (oft.offtakerName || "").trim() })),
       offtakerTransportRef: transportRef,
       offtakerTransportDate: capturedAt,
       offtakerPlateNo: oft.plateNo,
@@ -5948,6 +5957,7 @@ export default function RezyMRVLive() {
           feedstockType: sel.feedstockType,
           weightKg: sel.weightKg,
           processor: sel.processor,
+          offtakerName: (oft.offtakerName || "").trim(),
         }));
       const merged = [...existing, ...added];
       const shippedNow = new Set(merged.map(m => String(m.processedMaterialIndex)).filter(Boolean));
@@ -6120,9 +6130,9 @@ export default function RezyMRVLive() {
     setColGeo({ lat: "", lng: "" });
     setTrn({ transportRef: "", transportDate: null, photoDataUrl: null, pickupVehicle: "" });
     setTrnGeo({ lat: "", lng: "" });
-    setPrc({ processor: "", processorOther: "", eowProcess: "", weighingEquipId: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
+    setPrc({ processor: DEFAULT_PROCESSING_FACILITY, processorOther: "", eowProcess: "", weighingEquipId: "", processingEndDate: null, photoDataUrl: null, processedMaterialIndex: "", acceptedWeightKg: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setPrcGeo({ lat: "", lng: "" });
-    setOft({ selectedLines: [], materials: [{ feedstockType: "", weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: "", photoDataUrl: null });
+    setOft({ offtakerName: "", selectedLines: [], materials: [{ feedstockType: "", weightKg: "", processor: "" }], transportRef: "", transportDate: null, plateNo: "", photoDataUrl: null });
     setOftGeo({ lat: "", lng: "" });
     setDsp({ facility: "", facilityOther: "", eowProcess: "", processingEndDate: null, photoDataUrl: null, qcReportPhotoDataUrl: null, processedMaterialIndex: "", rejectedWeightKg: "", contaminationKg: "", contaminationNote: "", contaminationPhotoDataUrl: null });
     setDspGeo({ lat: "", lng: "" });
@@ -6386,6 +6396,7 @@ export default function RezyMRVLive() {
 	                ["Collection Date", fmtDateTime(detailView.collectionDate)],
                 [t("transportRefShort"), detailView.transportRef],
                 [t("transportDate"), fmtDateTime(detailView.transportDate)],
+                [t("hubWeightLabel"), detailView.gudangKg !== "" && detailView.gudangKg != null ? `${Number(detailView.gudangKg).toLocaleString()} kg` : ""],
                 ["Processor", detailView.processor],
                 ["Weighing Equip.", detailView.weighingEquipId],
                 [t("notesLabel"), detailView.notes],
@@ -6469,7 +6480,7 @@ export default function RezyMRVLive() {
                 <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>Offtaker Transport Material Lines</div>
                 {detailView.offtakerMaterials.map((m, idx) => (
                   <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.muted, fontWeight: 600 }}>
-                    <span>{m.index || idx + 1}. {displayFeedstock(m.feedstockType)}</span>
+                    <span>{m.index || idx + 1}. {displayFeedstock(m.feedstockType)}{m.offtakerName ? ` → ${m.offtakerName}` : ""}</span>
                     <span>{Number(m.weightKg).toLocaleString()} kg</span>
                   </div>
                 ))}
@@ -6975,6 +6986,7 @@ export default function RezyMRVLive() {
                       </div>
                     )}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
+                      <Inp label={t("hubWeightLabel")} value={active && active.gudangKg !== "" && active.gudangKg != null ? String(active.gudangKg) : t("hubWeightNone")} onChange={() => {}} disabled />
                       <Sel label={t("processingFacility")} value={prc.processor} onChange={v => setPrc(p=>({...p,processor:v}))} options={[{ value: "", label: t("selectFacility") }, ...PROCESSING_FACILITIES.map(o => ({ value: o, label: o }))]} required />
                       {prc.processor === "Other" && (
                         <Inp label={t("processingFacilityOther")} value={prc.processorOther} onChange={v => setPrc(p=>({...p,processorOther:v}))} placeholder={t("processingFacilityOtherPlaceholder")} required />
@@ -7054,6 +7066,24 @@ export default function RezyMRVLive() {
                     <SectionTitle>{t("stageOfftakerTransport")}</SectionTitle>
                     <div style={{ marginBottom: 13 }}>
                       <Lbl>{t("materialsLabel")}</Lbl>
+                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t("feedstockPick")}</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                        {OFFTAKER_FEEDSTOCK_TYPES.map(ft => {
+                          const on = (oft.materials || []).some(m => m.feedstockType === ft);
+                          return (
+                            <button key={ft} type="button" onClick={() => setOft(p => {
+                              const cur = p.materials || [];
+                              if (cur.some(m => m.feedstockType === ft)) {
+                                const left = cur.filter(m => m.feedstockType !== ft);
+                                return { ...p, materials: left.length ? left : [{ feedstockType: "", weightKg: "", processor: "" }] };
+                              }
+                              const emptyIdx = cur.findIndex(m => !m.feedstockType);
+                              if (emptyIdx >= 0) { const next = [...cur]; next[emptyIdx] = { ...next[emptyIdx], feedstockType: ft }; return { ...p, materials: next }; }
+                              return { ...p, materials: [...cur, { feedstockType: ft, weightKg: "", processor: "" }] };
+                            })} style={{ padding: "6px 10px", borderRadius: 16, fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1px solid ${on ? C.forest : C.creamDark}`, background: on ? C.forest : C.cardBg, color: on ? "#fff" : C.charcoal }}>{ft}</button>
+                          );
+                        })}
+                      </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {(oft.materials || []).map((m, idx) => (
                           <div key={idx} style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 8, alignItems: isMobile ? "stretch" : "end" }}>
@@ -7153,6 +7183,7 @@ export default function RezyMRVLive() {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
                       <Inp label={t("transportRef")} value={offtakerSelectedLines.length > 0 ? (oft.transportRef || generatedManifestRef(offtakerSelectedLines[0].b.batchId, clockNow)) : ""} onChange={() => {}} disabled />
                       <Inp label={t("transportTimestamp")} value={jakartaNowLabel(clockNow)} onChange={() => {}} disabled />
+                      <Inp label={t("offtakerName")} value={oft.offtakerName || ""} onChange={v => setOft(p => ({ ...p, offtakerName: v }))} placeholder={t("offtakerNamePh")} required />
                       <Sel label={t("materialPlateNo")} value={oft.plateNo} onChange={v => setOft(p=>({...p,plateNo:v}))} options={[{ value: "", label: t("selectPlateNo") }, ...OFFTAKER_PLATE_NUMBERS.map(o => ({ value: o, label: o }))]} required />
                       {SHOW_MAP_PICKER && <MapPicker value={oftGeo} onChange={setOftGeo} lang={lang} />}
                     </div>
