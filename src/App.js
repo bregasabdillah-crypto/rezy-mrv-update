@@ -2285,6 +2285,13 @@ async function loadBatchesFromSheet(sheetsUrl, light = false) {
     if (json.ok && Array.isArray(json.batches) && json.batches.length > 0) {
       const normalized = json.batches.map(normalizeSheetBatch).filter(hasMeaningfulBatch);
       const grouped = groupSheetBatchesByBatchId(normalized);
+      // Hub (gudang) weights come from a separate read-only endpoint; failure just leaves the field empty.
+      if (/rezy-mrv-api/.test(sheetsUrl)) {
+        try {
+          const hw = await (await fetch(sheetsUrl.replace("rezy-mrv-api", "rezy-hub-weights"), { cache: "no-store" })).json();
+          if (hw && hw.ok && hw.weights) grouped.forEach(b => { if (hw.weights[b.batchId] != null) b.gudangKg = hw.weights[b.batchId]; });
+        } catch { /* ignore */ }
+      }
       return grouped.length ? grouped : null;
     }
     return null;
