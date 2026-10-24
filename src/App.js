@@ -4832,6 +4832,9 @@ export default function RezyMRVLive() {
   // Settings
   const [settings, setSettings] = useState({ buyerName: "EPR Sponsor", hubName: "Hub Depok-01" });
   const [sheetsUrl, setSheetsUrl] = useState(DEFAULT_SHEETS_URL);
+  const REJECTED_MATERIALS = ["PP Cup Grade A", "PP Karung"];
+  const [oftProductQuery, setOftProductQuery] = useState("");
+  const [rej, setRej] = useState({ stock: null, offtaker: "", plate: "", kg: { "PP Cup Grade A": "", "PP Karung": "" }, busy: false });
   const [syncStatus, setSyncStatus] = useState(null); // null | "syncing" | "ok" | "fail"
   const lastSheetRefreshRef = useRef(0);
   const [reviewViewMode, setReviewViewMode] = useState("list");
@@ -4915,10 +4918,10 @@ export default function RezyMRVLive() {
   // from recent batches, records, dropdowns, and stats until an admin decides.
   // June and September 2026 test data (DPK- batches collected before 1 Oct 2026) is retired: never shown, even from a local cache.
   const isRetiredBatch = (b) => /^DPK-/.test(b.batchId || "") && b.collectionDate && new Date(b.collectionDate) < new Date("2026-09-30T17:00:00Z");
-  const visibleBatches = batches.filter(b => (b.reviewStatus || "pending") !== "pending" && !isRetiredBatch(b));
-  // Batches collected (D-day or D-1) and not yet picked up by a transport manifest
-  // Internal Depok = internal reclassification of sorting rejects; it never leaves the hub, so it is outside the transport / chain of custody.
+  // Internal Depok = rejected-material reclassification: its own stream, never part of logged tonnage or chain of custody.
   const isInternalBatch = (b) => b.collectorId === "Internal Depok";
+  const visibleBatches = batches.filter(b => (b.reviewStatus || "pending") !== "pending" && !isRetiredBatch(b) && !isInternalBatch(b));
+  // Batches collected (D-day or D-1) and not yet picked up by a transport manifest
   const pickupBatches = visibleBatches.filter(b => b.status === "collection" && !isInternalBatch(b) && isWithinPickupWindow(b.collectionDate, clockNow));
   // Helpers for partial (per-material-line) processing
   const allMaterialIndexesOf = (b) => (b.materials?.length ? b.materials.map(m => String(m.index || 1)) : ["1"]);
@@ -4975,6 +4978,18 @@ export default function RezyMRVLive() {
   const OFFTAKER_BATCHES_PER_PAGE = 10;
   const offtakerPageCount = Math.max(1, Math.ceil(offtakerLinesFiltered.length / OFFTAKER_BATCHES_PER_PAGE));
   const offtakerLinesPaged = offtakerLinesFiltered.slice(offtakerPage * OFFTAKER_BATCHES_PER_PAGE, (offtakerPage + 1) * OFFTAKER_BATCHES_PER_PAGE);
+  // Stock currently waiting for transport: processed lines by product, plus approved rejected stream
+  const availableStockRows = (() => {
+    const m = {};
+    offtakerLinesAll.forEach(({ line }) => { const k = displayFeedstock(line.feedstockType) || "—"; m[k] = (m[k] || 0) + (Number(line.weightKg) || 0); });
+    const rows = Object.entries(m).map(([name, kg]) => ({ name, kg, rejected: false })).sort((a, b) => a.name.localeCompare(b.name));
+    if (rej.stock) REJECTED_MATERIALS.forEach(k => { const a = rej.stock[k]; if (a && a.available_kg > 0) rows.push({ name: k, kg: a.available_kg, rejected: true }); });
+    return rows;
+  })();
+  const rejectedLoadKg = REJECTED_MATERIALS.reduce((sum, k) => sum + (Number(rej.kg[k]) || 0), 0);
+  const collectedLoadKg = (oft.selectedLines || []).length
+    ? (oft.selectedLines || []).reduce((sum, l) => sum + (Number(l.weightKg) || 0), 0)
+    : (oft.materials || []).reduce((sum, mm) => sum + (Number(mm.weightKg) || 0), 0);
   const offtakerSelectedLines = (oft.selectedLines || [])
     .map(sel => {
       const b = batches.find(x => x.id === sel.batchRef);
@@ -5180,9 +5195,6 @@ export default function RezyMRVLive() {
   }
 
   // ── Rejected material (gelas / karung from sorting): separate stream, outside chain of custody ──
-  const REJECTED_MATERIALS = ["PP Cup Grade A", "PP Karung"];
-  const [oftProductQuery, setOftProductQuery] = useState("");
-  const [rej, setRej] = useState({ stock: null, offtaker: "", plate: "", kg: { "PP Cup Grade A": "", "PP Karung": "" }, busy: false });
   const rejUrl = /rezy-mrv-api/.test(sheetsUrl || "") ? sheetsUrl.replace("rezy-mrv-api", "rezy-rejected-api") : null;
   async function loadRejStock() {
     if (!rejUrl) return;
@@ -5192,23 +5204,25 @@ export default function RezyMRVLive() {
     } catch { /* ignore */ }
   }
   useEffect(() => { if (entryMode === "offtaker_transport") loadRejStock(); }, [entryMode, rejUrl]); // eslint-disable-line react-hooks/exhaustive-deps
-  async function submitRejectedShipment() {
-    const items = REJECTED_MATERIALS.map(m => ({ material: m, qty_kg: Number(rej.kg[m]) || 0 })).filter(i => i.qty_kg > 0);
-    if (!rej.offtaker.trim()) return showToast("Off-taker name is required.", "err");
-    if (!items.length) return showToast("Enter a weight for at least one material.", "err");
-    setRej(p => ({ ...p, busy: true }));
+  // Rejected-material part of the SAME off-taker transaction: same off-taker, plate, delivery date and manifest.
+  function rejectedItems() {
+    return REJECTED_MATERIALS.map(m => ({ material: m, qty_kg: Number(rej.kg[m]) || 0 })).filter(i => i.qty_kg > 0);
+  }
+  async function postRejectedLoad(transportRef) {
+    const items = rejectedItems();
+    if (!items.length) return true;
     try {
       const res = await fetch(rejUrl, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "ship", offtakerName: rej.offtaker.trim(), plateNo: rej.plate, items, inputter: "App" }),
+        body: JSON.stringify({ action: "ship", offtakerName: (oft.offtakerName || "").trim(), plateNo: oft.plateNo, transportRef, deliveryDate: oft.deliveryDate, items, inputter: "App" }),
       });
       const j = await res.json();
-      if (!j.ok) { showToast(j.error || "Failed to record shipment.", "err"); setRej(p => ({ ...p, busy: false })); return; }
-      showToast(`Rejected-material shipment recorded (${items.length} material).`);
-      setRej(p => ({ ...p, stock: j.stock, offtaker: "", plate: "", kg: { "PP Cup Grade A": "", "PP Karung": "" }, busy: false }));
+      if (!j.ok) { showToast(j.error || "Failed to record rejected-material load.", "err"); return false; }
+      setRej(p => ({ ...p, stock: j.stock, kg: { "PP Cup Grade A": "", "PP Karung": "" } }));
+      return true;
     } catch (e) {
-      showToast("Could not reach the backend.", "err");
-      setRej(p => ({ ...p, busy: false }));
+      showToast("Could not reach the backend for the rejected-material load.", "err");
+      return false;
     }
   }
 
@@ -5977,10 +5991,15 @@ export default function RezyMRVLive() {
       return acc;
     }, {});
     const selectedBatches = Object.keys(linesByBatchRef).map(id => batches.find(b => b.id === id)).filter(Boolean);
-    const transportRef = selectedBatches.length > 0 ? (oft.transportRef || generatedManifestRef(selectedBatches[0].batchId, capturedAt)) : (directMeta.manifestRef || generatedManifestRef(directBatchId(), capturedAt));
+    const rejItems = rejectedItems();
+    const mainEmpty = selectedLines.length === 0 && (oft.materials || []).every(m => !m.feedstockType && !m.weightKg);
+    const rejectedOnly = rejItems.length > 0 && mainEmpty;
+    const transportRef = rejectedOnly
+      ? `MNF-REJ-${capturedAt.slice(0, 10).replace(/-/g, "")}-${capturedAt.slice(11, 16).replace(":", "")}`
+      : selectedBatches.length > 0 ? (oft.transportRef || generatedManifestRef(selectedBatches[0].batchId, capturedAt)) : (directMeta.manifestRef || generatedManifestRef(directBatchId(), capturedAt));
     if (!requireFields([
-      { ok: selectedLines.length > 0 ? true : Boolean(directBatchId()), label: "Batch ID" },
-      { ok: (oft.materials || []).every(m => m.feedstockType && Number(m.weightKg) > 0), label: "Materials" },
+      { ok: rejectedOnly || selectedLines.length > 0 ? true : Boolean(directBatchId()), label: "Batch ID" },
+      { ok: rejectedOnly || (oft.materials || []).every(m => m.feedstockType && Number(m.weightKg) > 0), label: "Materials" },
       { ok: Boolean((oft.offtakerName || "").trim()), label: "Off-taker Name" },
       { ok: Boolean(oft.deliveryDate), label: "Delivery date" },
       { ok: Boolean(transportRef), label: "Transport Manifest Ref." },
@@ -5995,6 +6014,16 @@ export default function RezyMRVLive() {
     if (!geo) {
       showToast("Unable to get GPS location. Please make sure Location Services is turned on for this browser, then tap Submit again.", "err");
       return;
+    }
+    // Rejected stream first: the server refuses anything above approved stock, so a refusal stops the whole transaction before any batch is touched.
+    if (rejItems.length) {
+      const okRej = await postRejectedLoad(transportRef);
+      if (!okRej) return;
+      if (rejectedOnly) {
+        showToast(`Rejected-material load recorded (${rejItems.reduce((s2, i) => s2 + i.qty_kg, 0).toLocaleString()} kg).`);
+        resetNewBatchForm();
+        return;
+      }
     }
     const clientMeta = await captureClientMeta();
     const activity = makeActivityAt("Offtaker Transport", roleObj.name, capturedAt, geo, `Manifest: ${transportRef} · Delivery date: ${oft.deliveryDate}${oft.processor ? ` · Facility: ${oft.processor}` : ""}`);
@@ -7143,10 +7172,20 @@ export default function RezyMRVLive() {
                 {entryMode === "offtaker_transport" && stage === 4 && (
                   <div>
                     <SectionTitle>{t("stageOfftakerTransport")}</SectionTitle>
+                    <div style={{ background: C.cream, borderRadius: 10, padding: "12px 14px", marginBottom: 16, border: `1px solid ${C.creamDark}` }}>
+                      <div style={{ fontWeight: 800, color: C.forest, marginBottom: 6 }}>Available stock</div>
+                      {availableStockRows.length === 0 && <div style={{ fontSize: 12, color: C.muted }}>No processed stock waiting for transport.</div>}
+                      {availableStockRows.map(r => (
+                        <div key={r.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.charcoal, padding: "2px 0" }}>
+                          <span>{r.name}{r.rejected ? " · rejected stream" : ""}</span>
+                          <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>{Number(r.kg).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg</span>
+                        </div>
+                      ))}
+                    </div>
                     {rejUrl && rej.stock && (
                       <div style={{ background: C.creamMid, borderRadius: 10, padding: "12px 14px", marginBottom: 16, border: `1px solid ${C.creamDark}` }}>
-                        <div style={{ fontWeight: 800, color: C.forest, marginBottom: 2 }}>Rejected material (gelas / karung)</div>
-                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>Separate stream from sorting, outside chain of custody. Only approved stock can be shipped.</div>
+                        <div style={{ fontWeight: 800, color: C.forest, marginBottom: 2 }}>Rejected material loaded (gelas / karung)</div>
+                        <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>Separate stream from sorting, outside chain of custody and not part of Total Plastic Logged. Only approved stock can be loaded. Uses this transaction's off-taker, plate and delivery date.</div>
                         {REJECTED_MATERIALS.map(m => {
                           const s = rej.stock[m] || { available_kg: 0, pending_kg: 0 };
                           return (
@@ -7161,13 +7200,12 @@ export default function RezyMRVLive() {
                             </div>
                           );
                         })}
-                        <SearchSel label={t("offtakerName")} value={rej.offtaker} onChange={v => setRej(p => ({ ...p, offtaker: v }))} options={OFFTAKER_NAMES.map(n => ({ value: n, label: n }))} placeholder={t("offtakerNamePh")} lang={lang} />
-                        <div style={{ marginTop: 8 }}>
-                          <Sel label={t("materialPlateNo")} value={rej.plate} onChange={v => setRej(p => ({ ...p, plate: v }))} options={[{ value: "", label: t("selectPlateNo") }, ...OFFTAKER_PLATE_NUMBERS.map(o => ({ value: o, label: o }))]} />
-                        </div>
-                        <div style={{ marginTop: 10 }}><Btn small onClick={submitRejectedShipment} variant="secondary" disabled={rej.busy}>Record rejected-material shipment</Btn></div>
                       </div>
                     )}
+                    <div style={{ background: C.creamMid, borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: C.charcoal, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+                      <span>Collected stock {collectedLoadKg.toLocaleString()} kg + rejected {rejectedLoadKg.toLocaleString()} kg</span>
+                      <span style={{ fontWeight: 800, color: C.forest, fontFamily: "'DM Mono', monospace" }}>Total load {(collectedLoadKg + rejectedLoadKg).toLocaleString()} kg</span>
+                    </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 13, marginBottom: 13 }}>
                       <SearchSel label={t("offtakerName")} value={oft.offtakerName || ""} onChange={v => setOft(p => ({ ...p, offtakerName: v }))} options={OFFTAKER_NAMES.map(n => ({ value: n, label: n }))} placeholder={t("offtakerNamePh")} required lang={lang} />
                       <Sel label={t("processingFacility")} value={oft.processor || ""} onChange={v => setOft(p => ({ ...p, processor: v }))} options={[{ value: "", label: t("allFacilities") }, ...PROCESSING_FACILITIES.map(f => ({ value: f, label: f }))]} />
