@@ -4895,7 +4895,9 @@ export default function RezyMRVLive() {
   // from recent batches, records, dropdowns, and stats until an admin decides.
   const visibleBatches = batches.filter(b => (b.reviewStatus || "pending") !== "pending");
   // Batches collected (D-day or D-1) and not yet picked up by a transport manifest
-  const pickupBatches = visibleBatches.filter(b => b.status === "collection" && isWithinPickupWindow(b.collectionDate, clockNow));
+  // Internal Depok = internal reclassification of sorting rejects; it never leaves the hub, so it is outside the transport / chain of custody.
+  const isInternalBatch = (b) => b.collectorId === "Internal Depok";
+  const pickupBatches = visibleBatches.filter(b => b.status === "collection" && !isInternalBatch(b) && isWithinPickupWindow(b.collectionDate, clockNow));
   // Helpers for partial (per-material-line) processing
   const allMaterialIndexesOf = (b) => (b.materials?.length ? b.materials.map(m => String(m.index || 1)) : ["1"]);
   const processedIndexesOf = (b) => (b.processedMaterials || []).map(m => String(m.processedMaterialIndex));
@@ -7646,7 +7648,7 @@ export default function RezyMRVLive() {
 
           {/* ════════════════ CHAIN OF CUSTODY ════════════════ */}
           {tab === "custody" && canAccess("custody") && (
-            <ChainOfCustodyPanel batches={visibleBatches} lang={lang} />
+            <ChainOfCustodyPanel batches={visibleBatches.filter(b => !isInternalBatch(b))} lang={lang} />
           )}
 
           {/* ════════════════ ANALYTICS ════════════════ */}
