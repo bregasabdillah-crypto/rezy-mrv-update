@@ -2790,7 +2790,7 @@ function SearchSel({ label, value, onChange, options, required, disabled, placeh
         <div style={{
           position: "absolute", top: "100%", left: 0, right: 0, zIndex: 20, marginTop: 4,
           background: C.white, border: `1.5px solid ${C.creamDark}`, borderRadius: 8,
-          boxShadow: "0 4px 14px rgba(0,0,0,0.12)", maxHeight: 240, display: "flex", flexDirection: "column",
+          boxShadow: "0 4px 14px rgba(0,0,0,0.12)", maxHeight: 280, display: "flex", flexDirection: "column", overflow: "hidden",
         }}>
           <input
             autoFocus type="text" value={query} onChange={e => setQuery(e.target.value)}
@@ -2799,7 +2799,7 @@ function SearchSel({ label, value, onChange, options, required, disabled, placeh
               padding: "9px 12px", border: "none", borderBottom: `1.5px solid ${C.creamDark}`,
               fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box",
             }} />
-          <div style={{ overflowY: "auto" }}>
+          <div style={{ overflowY: "auto", flex: "1 1 auto", minHeight: 0, overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}>
             {filtered.length === 0 && (
               <div style={{ padding: "10px 12px", fontSize: 12, color: C.muted }}>{t("noMatches")}</div>
             )}
