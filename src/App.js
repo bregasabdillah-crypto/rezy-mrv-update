@@ -4834,6 +4834,9 @@ export default function RezyMRVLive() {
   const [sheetsUrl, setSheetsUrl] = useState(DEFAULT_SHEETS_URL);
   const REJECTED_MATERIALS = ["PP Cup Grade A", "PP Karung"];
   const [oftProductQuery, setOftProductQuery] = useState("");
+  const [revRows, setRevRows] = useState(null);
+  const [revSel, setRevSel] = useState([]);
+  const [revBusy, setRevBusy] = useState(false);
   const [rej, setRej] = useState({ stock: null, offtaker: "", plate: "", kg: { "PP Cup Grade A": "", "PP Karung": "" }, busy: false });
   const [syncStatus, setSyncStatus] = useState(null); // null | "syncing" | "ok" | "fail"
   const lastSheetRefreshRef = useRef(0);
@@ -5204,6 +5207,27 @@ export default function RezyMRVLive() {
     } catch { /* ignore */ }
   }
   useEffect(() => { if (entryMode === "offtaker_transport") loadRejStock(); }, [entryMode, rejUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Admin review of the rejected-material stream (gelas / karung) ──
+  async function loadRevRows() {
+    if (!rejUrl) return;
+    try {
+      const j = await (await fetch(`${rejUrl}?list=pending&_ts=${Date.now()}`, { cache: "no-store" })).json();
+      if (j && j.ok) { setRevRows(j.rows || []); setRevSel(sel => sel.filter(id => (j.rows || []).some(r => r.id === id))); }
+    } catch { /* ignore */ }
+  }
+  useEffect(() => { if (tab === "verify") loadRevRows(); }, [tab, rejUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function reviewRejected(ids, decision) {
+    if (!ids.length || !rejUrl) return;
+    setRevBusy(true);
+    try {
+      const res = await fetch(rejUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "review", ids, decision, reviewer: roleObj?.name || "Admin" }) });
+      const j = await res.json();
+      if (!j.ok) showToast(j.error || "Review failed.", "err");
+      else { showToast(`${j.updated} rejected-material row(s) ${decision}.`); setRevSel([]); if (j.stock) setRej(p => ({ ...p, stock: j.stock })); await loadRevRows(); }
+    } catch { showToast("Could not reach the backend.", "err"); }
+    setRevBusy(false);
+  }
+
   // Rejected-material part of the SAME off-taker transaction: same off-taker, plate, delivery date and manifest.
   function rejectedItems() {
     return REJECTED_MATERIALS.map(m => ({ material: m, qty_kg: Number(rej.kg[m]) || 0 })).filter(i => i.qty_kg > 0);
@@ -7469,6 +7493,31 @@ export default function RezyMRVLive() {
 		                  </div>
 		                </div>
 	              </div>
+
+	              {rejUrl && revRows && revRows.length > 0 && (
+	                <Card style={{ marginBottom: 12 }}>
+	                  <div style={{ fontWeight: 800, color: C.forest, marginBottom: 2 }}>Rejected material awaiting approval (gelas / karung)</div>
+	                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>Sorting rejects, separate stream outside chain of custody. Weight = sortiran count taken as kg. Approved rows become available stock.</div>
+	                  <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 260, overflowY: "auto", marginBottom: 10 }}>
+	                    {revRows.map(r => {
+	                      const on = revSel.includes(r.id);
+	                      return (
+	                        <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: on ? C.creamMid : "transparent", border: `1px solid ${on ? C.forest : C.creamDark}` }}>
+	                          <input type="checkbox" checked={on} onChange={() => setRevSel(sel => on ? sel.filter(x => x !== r.id) : [...sel, r.id])} style={{ width: 18, height: 18, accentColor: C.forest }} />
+	                          <span style={{ flex: 1, fontSize: 12, color: C.charcoal }}>{r.sortiran_date} · {r.sorter} · {r.material}</span>
+	                          <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, fontSize: 12 }}>{Number(r.qty_kg).toLocaleString()} kg</span>
+	                        </label>
+	                      );
+	                    })}
+	                  </div>
+	                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+	                    <Btn small onClick={() => setRevSel(revSel.length === revRows.length ? [] : revRows.map(r => r.id))} variant="ghost">{revSel.length === revRows.length ? "Clear selection" : "Select all"}</Btn>
+	                    <Btn small onClick={() => reviewRejected(revSel, "approved")} variant="primary" disabled={!revSel.length || revBusy}>Approve selected ({revSel.length})</Btn>
+	                    <Btn small onClick={() => reviewRejected(revSel, "rejected")} variant="secondary" disabled={!revSel.length || revBusy}>Reject selected</Btn>
+	                    <span style={{ fontSize: 11, color: C.muted }}>Total pending {revRows.reduce((a, r) => a + Number(r.qty_kg), 0).toLocaleString()} kg</span>
+	                  </div>
+	                </Card>
+	              )}
 
 	              <Card style={{ marginBottom: 12 }}>
 	                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 0.8fr", gap: 12, alignItems: "end" }}>
