@@ -2757,6 +2757,7 @@ function SearchSel({ label, value, onChange, options, required, disabled, placeh
   const t = useT(lang);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(0);
   const wrapRef = useRef(null);
 
   useEffect(() => {
@@ -2772,11 +2773,16 @@ function SearchSel({ label, value, onChange, options, required, disabled, placeh
     ? normalized.filter(o => o.label.toLowerCase().includes(query.trim().toLowerCase()))
     : normalized;
 
+  const SEARCHSEL_PAGE_SIZE = 10;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / SEARCHSEL_PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageItems = filtered.slice(safePage * SEARCHSEL_PAGE_SIZE, (safePage + 1) * SEARCHSEL_PAGE_SIZE);
+
   return (
     <div ref={wrapRef} style={{ position: "relative" }}>
       {label && <Lbl required={required}>{label}</Lbl>}
       <div
-        onClick={() => !disabled && setOpen(o => !o)}
+        onClick={() => { if (!disabled) { setOpen(o => !o); setPage(0); } }}
         style={{
           width: "100%", padding: "9px 12px", borderRadius: 8, boxSizing: "border-box",
           border: `1.5px solid ${open ? C.forest : C.creamDark}`, background: disabled ? C.creamMid : C.white,
@@ -2793,7 +2799,7 @@ function SearchSel({ label, value, onChange, options, required, disabled, placeh
           boxShadow: "0 4px 14px rgba(0,0,0,0.12)", maxHeight: 280, display: "flex", flexDirection: "column", overflow: "hidden",
         }}>
           <input
-            autoFocus type="text" value={query} onChange={e => setQuery(e.target.value)}
+            autoFocus type="text" value={query} onChange={e => { setQuery(e.target.value); setPage(0); }}
             placeholder={placeholder || t("searchNamePlaceholder")}
             style={{
               padding: "9px 12px", border: "none", borderBottom: `1.5px solid ${C.creamDark}`,
@@ -2803,7 +2809,7 @@ function SearchSel({ label, value, onChange, options, required, disabled, placeh
             {filtered.length === 0 && (
               <div style={{ padding: "10px 12px", fontSize: 12, color: C.muted }}>{t("noMatches")}</div>
             )}
-            {filtered.map(o => (
+            {pageItems.map(o => (
               <div key={o.value} onClick={() => { onChange(o.value); setQuery(""); setOpen(false); }}
                 style={{
                   padding: "8px 12px", fontSize: 13, cursor: "pointer",
@@ -2815,6 +2821,13 @@ function SearchSel({ label, value, onChange, options, required, disabled, placeh
               </div>
             ))}
           </div>
+          {pageCount > 1 && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", borderTop: `1.5px solid ${C.creamDark}`, fontSize: 12, color: C.muted }}>
+              <button type="button" disabled={safePage === 0} onClick={() => setPage(safePage - 1)} style={{ border: "none", background: "transparent", cursor: safePage === 0 ? "default" : "pointer", color: safePage === 0 ? C.muted : C.forest, fontWeight: 600, fontFamily: "inherit" }}>‹ Prev</button>
+              <span>{safePage + 1} / {pageCount} · {filtered.length}</span>
+              <button type="button" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)} style={{ border: "none", background: "transparent", cursor: safePage >= pageCount - 1 ? "default" : "pointer", color: safePage >= pageCount - 1 ? C.muted : C.forest, fontWeight: 600, fontFamily: "inherit" }}>Next ›</button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -4929,7 +4942,11 @@ export default function RezyMRVLive() {
   // Helpers for partial (per-material-line) processing
   const allMaterialIndexesOf = (b) => (b.materials?.length ? b.materials.map(m => String(m.index || 1)) : ["1"]);
   const processedIndexesOf = (b) => (b.processedMaterials || []).map(m => String(m.processedMaterialIndex));
-  const hasUnprocessedMaterial = (b) => allMaterialIndexesOf(b).some(idx => !processedIndexesOf(b).includes(idx));
+  // PP / HD collection lines are not hand-processed at the hub: they go straight to
+  // Available stock (see collectionLinesOf), so they never block or populate this form.
+  const isAutoStockMaterial = (m) => /^(PP|HD)/i.test(String(m?.feedstockType || ""));
+  const hasUnprocessedMaterial = (b) => (b.materials?.length ? b.materials : [{ index: 1 }])
+    .some((m, i) => !isAutoStockMaterial(m) && !processedIndexesOf(b).includes(String(m.index || i + 1)));
   // Batches already picked up by transport, awaiting processing at the facility (incl. partially processed batches with remaining material lines)
   const processBatches = visibleBatches.filter(b => (b.status === "transport" || b.status === "processing") && hasUnprocessedMaterial(b));
   // Same helpers the Chain of Custody view uses, so the picker and the custody
@@ -7144,7 +7161,7 @@ export default function RezyMRVLive() {
                       <Sel label={t("weighingEquip")} value={prc.weighingEquipId} onChange={v => setPrc(p=>({...p,weighingEquipId:v}))} options={[{ value: "", label: t("selectWeighingEquip") }, ...SCALES.map(o => ({ value: o, label: o }))]} required />
                       {(() => {
                         const procMaterialsAll = (active?.materials?.length ? active.materials : [{ index: 1, feedstockType: directMeta.feedstockType, weightKg: directMeta.weightKg }]);
-                        const procMaterialsAvail = procMaterialsAll.filter(m => !(active?.processedMaterials || []).some(pm => String(pm.processedMaterialIndex) === String(m.index || 1)));
+                        const procMaterialsAvail = procMaterialsAll.filter(m => !isAutoStockMaterial(m) && !(active?.processedMaterials || []).some(pm => String(pm.processedMaterialIndex) === String(m.index || 1)));
                         return (
                           <Sel
                             label={t("processedMaterial")}
@@ -7160,7 +7177,7 @@ export default function RezyMRVLive() {
                     </div>
                     {(() => {
                       const procMaterialsAll = (active?.materials?.length ? active.materials : [{ index: 1, feedstockType: directMeta.feedstockType, weightKg: directMeta.weightKg }]);
-                      const procMaterialsAvail = procMaterialsAll.filter(m => !(active?.processedMaterials || []).some(pm => String(pm.processedMaterialIndex) === String(m.index || 1)));
+                      const procMaterialsAvail = procMaterialsAll.filter(m => !isAutoStockMaterial(m) && !(active?.processedMaterials || []).some(pm => String(pm.processedMaterialIndex) === String(m.index || 1)));
                       const procMaterial = procMaterialsAvail.find(m => String(m.index || 1) === String(prc.processedMaterialIndex)) || procMaterialsAvail[0];
                       const processedWeightKg = Number(procMaterial?.weightKg) || 0;
                       const rejectedKg = Number(prc.rejectedWeightKg) || 0;
